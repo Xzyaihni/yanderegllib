@@ -124,8 +124,8 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
     bool presetDict = ((inputData[1]>>5)&0x1);
 
     char checksumStr[4] = {};
-    checksumStr[0] = (char)inputData[0];
-    checksumStr[1] = (char)inputData[1];
+    checksumStr[0] = static_cast<char>(inputData[0]);
+    checksumStr[1] = static_cast<char>(inputData[1]);
     checksumStr[2] = 0;
     checksumStr[3] = 0;
 
@@ -169,8 +169,8 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
             if(bitOffset>0) ++i;
             bitOffset = 0; //skip the partial bytes
             char dataLengthStr[4] = {};
-            dataLengthStr[0] = (char)inputData[i];
-            dataLengthStr[1] = (char)inputData[i+1];
+            dataLengthStr[0] = static_cast<char>(inputData[i]);
+            dataLengthStr[1] = static_cast<char>(inputData[i+1]);
             dataLengthStr[2] = 0;
             dataLengthStr[3] = 0;
             i+=4; //skip the one's complement of length
@@ -192,13 +192,13 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
                 return std::move(deflatedData);
             } else if(compressionType==2)
             {
-                unsigned codesLengthTotal = (unsigned)readForward(5);
+                unsigned codesLengthTotal = static_cast<unsigned>(readForward(5));
                 codesLengthTotal += 257;
 
-                unsigned codesDistanceTotal = (unsigned)readForward(5);
+                unsigned codesDistanceTotal = static_cast<unsigned>(readForward(5));
                 ++codesDistanceTotal;
 
-                unsigned codeLength = (unsigned)readForward(4);
+                unsigned codeLength = static_cast<unsigned>(readForward(4));
                 codeLength += 4;
 
                 std::vector<unsigned> lengthCodesBin;
@@ -365,7 +365,7 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
                         }
                     }
 
-                    codewordsLengthCodeSize[clci] = (uint_fast8_t)innerVec.size();
+                    codewordsLengthCodeSize[clci] = static_cast<uint_fast8_t>(innerVec.size());
                     codewordsLengthCodeLookup[clci] = innerVec;
                 }
 
@@ -433,7 +433,7 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
 
                         if(codeIndex<256)
                         {
-                            deflatedData.push_back((uint8_t)codeIndex);
+                            deflatedData.push_back(static_cast<uint8_t>(codeIndex));
                         } else
                         {
                             if(codeIndex==256)
@@ -563,7 +563,7 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
                         checkBits |= (inputData[i]>>bitOffset)&0x1;
                         shiftOffset();
 
-                        outBits = (unsigned)checkBits;
+                        outBits = static_cast<unsigned>(checkBits);
 
                         outBits <<= 1;
                         outBits |= (inputData[i]>>bitOffset)&0x1;
@@ -606,7 +606,7 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
                     readLength = outBits-0xfe;
                     int clampedBits = (outBits-0x105);
                     clampedBits = clampedBits<0 ? 0 : clampedBits;
-                    uint8_t extraLengthBits = (uint8_t)(clampedBits/4);
+                    uint8_t extraLengthBits = static_cast<uint8_t>(clampedBits/4);
 
                     if(extraLengthBits==6)
                     {
@@ -642,7 +642,7 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
 
                     clampedBits = (readDistance-0x2);
                     clampedBits = clampedBits<0 ? 0 : clampedBits;
-                    uint8_t extraDistanceBits = (uint8_t)(clampedBits/2);
+                    uint8_t extraDistanceBits = static_cast<uint8_t>(clampedBits/2);
 
                     int moverVal = readDistance-0x5;
 
