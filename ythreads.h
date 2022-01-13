@@ -41,7 +41,6 @@ namespace YanTemplates
 	struct element_tuple
 	{
 		//call element_tuple until it gets below the size of pack and set the type variable to its type
-		//typedef std::conditional_t<(sizeof...(A)>N), typename valid_element<sizeof...(A), N, A...>::type, void*> type;
 		typedef std::conditional_t<(sizeof...(A)>N), typename valid_element<(sizeof...(A)>N), N, A...>::type, void*> type;
 	};
 };
