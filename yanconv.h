@@ -31,6 +31,9 @@ public:
 
 	bool read(std::string loadPath);
     bool saveToFile(std::string savePath);
+    
+    unsigned getPixelColorPos(unsigned x, unsigned y, uint8_t color);
+    uint8_t getPixelColor(unsigned x, unsigned y, uint8_t color);
 
     static bool canParse(std::string extension);
 

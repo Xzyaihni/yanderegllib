@@ -104,7 +104,10 @@ YandereImage::YandereImage() : image({})
 
 YandereImage::YandereImage(std::string imagePath) : _imagePath(imagePath)
 {
-    read(imagePath);
+    if(!read(imagePath))
+    {
+    	std::cout << "cant read " << imagePath << std::endl;
+    }
 }
 
 std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
@@ -746,7 +749,7 @@ bool YandereImage::pngRead(bool checkChecksums)
             rgbUsed = (colorType>>1)&0x1;
             alphaChannel = (colorType>>2)&0x1;
 
-            valuesPerPixel = (3*rgbUsed)+alphaChannel;
+            valuesPerPixel = (2*rgbUsed)+alphaChannel+1;
 
             bpp = std::ceil((valuesPerPixel*bitDepth)/8.0f);
             valsPerByte = 8/bitDepth;
@@ -785,7 +788,7 @@ bool YandereImage::pngRead(bool checkChecksums)
             auto timeTaken = std::chrono::high_resolution_clock::now() - startTime;
             printf("deflate took: %i ms\n", (std::chrono::duration_cast<std::chrono::milliseconds>(timeTaken).count()));
             #endif
-
+            
             if(imageData.size()!=0)
             {
                 tempData.reserve(std::ceil(tempWidth*tempHeight*valuesPerPixel/(float)valsPerByte));
@@ -890,6 +893,7 @@ bool YandereImage::pngRead(bool checkChecksums)
                     }
                 }
             }
+            
 
             image = tempData;
             width = tempWidth;
@@ -1746,6 +1750,16 @@ bool YandereImage::read(std::string loadPath)
     }
     
     return false;
+}
+
+unsigned YandereImage::getPixelColorPos(unsigned x, unsigned y, uint8_t color)
+{
+	return y*width*bpp+x*bpp+color;
+}
+
+uint8_t YandereImage::getPixelColor(unsigned x, unsigned y, uint8_t color)
+{
+	return image[y*width*bpp+x*bpp+color];
 }
 
 bool YandereImage::canParse(std::string extension)
