@@ -13,6 +13,8 @@
 
 #include <iostream>
 
+//design level: spaghetti
+
 //the templates stuff is the main body so i cant separate it into a different file
 
 namespace YanTemplates
@@ -46,22 +48,46 @@ namespace YanTemplates
 };
 
 
-template <typename F, typename... A>
-class YanderePool
+
+class PassArg
+{
+public:
+	virtual ~PassArg() = default;
+};
+
+template<typename T>
+class ArgCore : public PassArg
+{
+public:
+	ArgCore(T arg) : arg(arg) {};
+
+	T arg;
+};
+
+class PoolBase
+{
+public:
+	PoolBase() {};
+	virtual ~PoolBase() = default;
+};
+
+
+template<typename F, typename... A>
+class PoolCore : public PoolBase
 {
 private:
 	//nice one liner x3
 	using fArgType = std::conditional_t<std::is_member_function_pointer<F>::value, typename YanTemplates::element_tuple<1, A...>::type, typename YanTemplates::element_tuple<0, A...>::type>;
 
 public:
-	~YanderePool() {exit_threads();};
+	~PoolCore() {exit_threads();};
 	
-	YanderePool(int numThreads, F callFunc, A... args);
+	PoolCore(int numThreads, F callFunc, A... args);
 	
-	void run(fArgType arg);
+	void run(PassArg* arg);
 	
 	void exit_threads();
-
+	
 private:
 	void work_func();
 
@@ -85,9 +111,73 @@ private:
 
 
 
+class YanderePool;
+
+class TypeHolder
+{
+public:
+	virtual ~TypeHolder() = default;
+	
+	virtual void run(PassArg* arg) = 0;
+	virtual void exit_threads() = 0;
+};
+
+template<class T>
+class TypeTemplate : public TypeHolder
+{
+public:
+	TypeTemplate(T* typePtr) : _typePtr(typePtr) {};
+
+	void run(PassArg* arg) {_typePtr->run(arg);};
+	void exit_threads() {_typePtr->exit_threads();};
+	
+private:
+	T* _typePtr;
+};
+
+class YanderePool
+{
+public:
+	YanderePool() {};
+	
+	template<typename F, typename... A>
+	YanderePool(int numThreads, F callFunc, A... args);
+	
+	template<typename A>
+	void run(A arg);
+	
+	void exit_threads();
+
+private:
+	std::unique_ptr<TypeHolder> _poolHolder;
+	std::unique_ptr<PoolBase> _tPool;
+};
+
+
+template<typename F, typename... A>
+YanderePool::YanderePool(int numThreads, F callFunc, A... args)
+{
+	_tPool = std::make_unique<PoolCore<F, A...>>(numThreads, callFunc, args...);
+	_poolHolder = std::make_unique<TypeTemplate<PoolCore<F, A...>>>(dynamic_cast<PoolCore<F, A...>*>(_tPool.get()));
+}
+
+template<typename A>
+void YanderePool::run(A arg)
+{
+	std::unique_ptr<PassArg> pArg = std::make_unique<ArgCore<A>>(arg);
+	_poolHolder->run(pArg.get());
+}
+
+void YanderePool::exit_threads()
+{
+	_poolHolder->exit_threads();
+}
+
+
+
 //you have to provide some random arguments of the correct type for it to set it up
 template<typename F, typename... A>
-YanderePool<F, A...>::YanderePool(int numThreads, F callFunc, A... args) : _callFunc(callFunc), _threadNum(numThreads)
+PoolCore<F, A...>::PoolCore(int numThreads, F callFunc, A... args) : _callFunc(callFunc), _threadNum(numThreads)
 {
 	assert(_threadNum>0);
 	
@@ -100,23 +190,24 @@ YanderePool<F, A...>::YanderePool(int numThreads, F callFunc, A... args) : _call
 	_threadsVec.reserve(numThreads);
 	for(int i = 0; i < numThreads; ++i)
 	{
-		_threadsVec.emplace_back(std::thread(&YanderePool::work_func, this));
+		_threadsVec.emplace_back(std::thread(&PoolCore::work_func, this));
 	}
 }
 
 
 template<typename F, typename... A>
-void YanderePool<F, A...>::run(fArgType arg)
+void PoolCore<F, A...>::run(PassArg* pArg)
 {
 	std::unique_lock<std::mutex> lock(_waitMutex);
 	
-	_argsQueue.emplace(std::move(arg));
+	//static casting!! not type safe (but i think its faster than dynamic cast?)
+	_argsQueue.emplace(std::move(static_cast<ArgCore<fArgType>*>(pArg)->arg));
 	
 	_condVar.notify_one();
 }
 
 template<typename F, typename... A>
-void YanderePool<F, A...>::exit_threads()
+void PoolCore<F, A...>::exit_threads()
 {
 	if(!_threadsRunning)
 		return;
@@ -135,7 +226,7 @@ void YanderePool<F, A...>::exit_threads()
 }
 
 template<typename F, typename... A>
-void YanderePool<F, A...>::work_func()
+void PoolCore<F, A...>::work_func()
 {
 	while(true)
 	{
@@ -147,10 +238,12 @@ void YanderePool<F, A...>::work_func()
 			
 			if(!_threadsRunning)
 				return;
+				
 			
 			fArg = _argsQueue.front();
 			_argsQueue.pop();
 		}
+		
 		
 		if constexpr(std::is_member_function_pointer<F>::value)
 		{
