@@ -1113,11 +1113,7 @@ YandereText YandereInitializer::createText(std::string text, std::string fontNam
 		
 		_modelMap[letterModelName] = letterModel;
 		
-		letters[c].width /= size;
-		letters[c].height /= size;
-		letters[c].originX /= size;
-		letters[c].originY /= size/2.0f;
-		letters[c].hDist /= size;
+		letters[c].originY *= 2;
 	}
 
 	std::string textureName = "!f" + fontName;
@@ -1132,7 +1128,7 @@ YandereText YandereInitializer::createText(std::string text, std::string fontNam
 	
 	_textureMap[textureName] = std::move(fontTexture);
 	
-	YandereText outText = YandereText(this, letters, textureName);
+	YandereText outText = YandereText(this, size, letters, textureName);
 	outText.setPosition(x, y);
 	outText.changeText(text);
 
@@ -1748,8 +1744,8 @@ YandereText::YandereText()
 {
 }
 
-YandereText::YandereText(YandereInitializer* yanInitializer, std::vector<LetterData> letters, std::string textureName) : 
-_yanInitializer(yanInitializer), _letters(letters), _textureName(textureName)
+YandereText::YandereText(YandereInitializer* yanInitializer, int size, std::vector<LetterData> letters, std::string textureName) : 
+_yanInitializer(yanInitializer), _size(size/64.0f), _letters(letters), _textureName(textureName)
 {
 }
 
@@ -1792,9 +1788,8 @@ void YandereText::changeText(std::string newText)
 		y - letter.height + letter.originY
 		};
 		
-		YanTransforms letterTransform = YanTransforms{letterPos,
-		letter.width,
-		letter.height, 1};
+		YanTransforms letterTransform = YanTransforms{{letterPos.x*_size, letterPos.y*_size, letterPos.z*_size},
+		{letter.width*_size, letter.height*_size, 1}};
 	
 
 		lastX += letter.width+letter.originX+letter.hDist/64.0f;

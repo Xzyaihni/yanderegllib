@@ -395,7 +395,7 @@ class YandereText
 {
 public:
 	YandereText();
-	YandereText(YandereInitializer* yanInitializer, std::vector<LetterData> letters, std::string textureName);
+	YandereText(YandereInitializer* yanInitializer, int size, std::vector<LetterData> letters, std::string textureName);
 	
 	void drawUpdate();
 	
@@ -418,6 +418,8 @@ private:
 	
 	float x = 0;
 	float y = 0;
+	
+	int _size = 0;
 	
 	float _textWidth = 0;
 	float _textHeight = 0;
