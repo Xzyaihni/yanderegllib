@@ -1745,7 +1745,7 @@ YandereText::YandereText()
 }
 
 YandereText::YandereText(YandereInitializer* yanInitializer, int size, std::vector<LetterData> letters, std::string textureName) : 
-_yanInitializer(yanInitializer), _size(size/64.0f), _letters(letters), _textureName(textureName)
+_yanInitializer(yanInitializer), _size(size), _letters(letters), _textureName(textureName)
 {
 }
 
@@ -1788,8 +1788,8 @@ void YandereText::changeText(std::string newText)
 		y - letter.height + letter.originY
 		};
 		
-		YanTransforms letterTransform = YanTransforms{{letterPos.x*_size, letterPos.y*_size, letterPos.z*_size},
-		{letter.width*_size, letter.height*_size, 1}};
+		YanTransforms letterTransform = YanTransforms{{letterPos.x, letterPos.y, letterPos.z},
+		{letter.width, letter.height, 1}};
 	
 
 		lastX += letter.width+letter.originX+letter.hDist/64.0f;
