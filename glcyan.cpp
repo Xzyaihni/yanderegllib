@@ -614,13 +614,13 @@ void YandereTexture::set_current(unsigned textureBuffer)
 	{
 		case GL_RED:
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		break;
+			break;
 		case GL_RG:
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-		break;
+			break;
 		case GL_RGB:
 			glPixelStorei(GL_UNPACK_ALIGNMENT, 3);
-		break;
+			break;
 	}
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -658,7 +658,7 @@ bool YandereTexture::parse_image(std::string imagePath, std::string fileFormat)
 
 unsigned YandereTexture::set_texture_type(uint8_t bpp)
 {
-	switch(_image.bpp)
+	switch(bpp)
 	{
 		case 4:
 			return GL_RGBA;
@@ -1122,7 +1122,8 @@ YandereShaderProgram* YandereInitializer::shader_program_ptr(unsigned programID)
 void YandereInitializer::set_shader_program(unsigned programID)
 {
 	assert(_shaderProgramMap.count(programID)!=0);
-	YandereShaderProgram shaderProgram = _shaderProgramMap[programID];
+	
+	glUseProgram(programID);
 	
 	_storedShaderID = programID;
 }
