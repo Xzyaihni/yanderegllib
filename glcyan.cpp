@@ -15,19 +15,15 @@ namespace YandereConst
 	const int circleLOD = 10;
 };
 
-YandereCamera::YandereCamera()
-{
-}
-
 YandereCamera::YandereCamera(YanPosition position, YanPosition lookPosition) : _projectionMatrix(glm::mat4(1.0f))
 {
 	_cameraPosition = glm::vec3(position.x, position.y, position.z);
 	_cameraDirection = glm::normalize(glm::vec3(lookPosition.x, lookPosition.y, lookPosition.z)-_cameraPosition);
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::createProjection(float fov, float aspectRatio, std::array<float, 2> planes)
+void YandereCamera::create_projection(float fov, float aspectRatio, std::array<float, 2> planes)
 {
 	_projectionMatrixExists = true;
 
@@ -35,10 +31,10 @@ void YandereCamera::createProjection(float fov, float aspectRatio, std::array<fl
 	clipClose = planes[0];
 	clipFar = planes[1];
 	
-	calculatePlanes();
+	calculate_planes();
 }
 
-void YandereCamera::createProjection(std::array<float, 4> orthoBox, std::array<float, 2> planes)
+void YandereCamera::create_projection(std::array<float, 4> orthoBox, std::array<float, 2> planes)
 {
 	_projectionMatrixExists = true;
 
@@ -46,67 +42,67 @@ void YandereCamera::createProjection(std::array<float, 4> orthoBox, std::array<f
 	clipClose = planes[0];
 	clipFar = planes[1];
 	
-	calculatePlanes();
+	calculate_planes();
 }
 
-void YandereCamera::setPosition(YanPosition position)
+void YandereCamera::set_position(YanPosition position)
 {
 	_cameraPosition = glm::vec3(position.x, position.y, position.z);
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::setPositionX(float x)
+void YandereCamera::set_position_x(float x)
 {
 	_cameraPosition.x = x;
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::setPositionY(float y)
+void YandereCamera::set_position_y(float y)
 {
 	_cameraPosition.y = y;
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::setPositionZ(float z)
+void YandereCamera::set_position_z(float z)
 {
 	_cameraPosition.z = z;
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::setRotation(float yaw, float pitch)
+void YandereCamera::set_rotation(float yaw, float pitch)
 {
 	_cameraDirection.x = std::cos(yaw) * std::cos(pitch);
 	_cameraDirection.y = std::sin(pitch);
 	_cameraDirection.z = std::sin(yaw) * std::cos(pitch);
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::setDirection(std::array<float, 3> direction)
+void YandereCamera::set_direction(std::array<float, 3> direction)
 {
 	_cameraDirection = glm::vec3(direction[0], direction[1], direction[2]);
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::lookAt(std::array<float, 3> lookPosition)
+void YandereCamera::look_at(std::array<float, 3> lookPosition)
 {
 	_cameraDirection = glm::normalize(glm::vec3(lookPosition[0], lookPosition[1], lookPosition[2])-_cameraPosition);
 
-	calculateView();
+	calculate_view();
 }
 
-void YandereCamera::translatePosition(YanPosition transPos)
+void YandereCamera::translate_position(YanPosition transPos)
 {
 	_cameraPosition += transPos.x*_cameraRight;
 	_cameraPosition += transPos.y*_cameraUp;
 	_cameraPosition += transPos.z*_cameraForward;
 
-	calculateView();
+	calculate_view();
 }
 
 YanPosition YandereCamera::position()
@@ -114,7 +110,7 @@ YanPosition YandereCamera::position()
 	return {_cameraPosition.x, _cameraPosition.y, _cameraPosition.z};
 }
 
-int YandereCamera::xPointSide(YanPosition point)
+int YandereCamera::x_point_side(YanPosition point)
 {
 	if(_planesArr[Side::left].a*point.x+_planesArr[Side::left].b*point.y+_planesArr[Side::left].c*point.z+_planesArr[Side::left].d>0
 	&& _planesArr[Side::right].a*point.x+_planesArr[Side::right].b*point.y+_planesArr[Side::right].c*point.z+_planesArr[Side::right].d>0)
@@ -126,7 +122,7 @@ int YandereCamera::xPointSide(YanPosition point)
 	}
 }
 
-int YandereCamera::yPointSide(YanPosition point)
+int YandereCamera::y_point_side(YanPosition point)
 {
 	if(_planesArr[Side::down].a*point.x+_planesArr[Side::down].b*point.y+_planesArr[Side::down].c*point.z+_planesArr[Side::down].d>0
 	&& _planesArr[Side::up].a*point.x+_planesArr[Side::up].b*point.y+_planesArr[Side::up].c*point.z+_planesArr[Side::up].d>0)
@@ -138,7 +134,7 @@ int YandereCamera::yPointSide(YanPosition point)
 	}
 }
 
-int YandereCamera::zPointSide(YanPosition point)
+int YandereCamera::z_point_side(YanPosition point)
 {
 	if(_planesArr[Side::back].a*point.x+_planesArr[Side::back].b*point.y+_planesArr[Side::back].c*point.z+_planesArr[Side::back].d>0
 	&& _planesArr[Side::forward].a*point.x+_planesArr[Side::forward].b*point.y+_planesArr[Side::forward].c*point.z+_planesArr[Side::forward].d>0)
@@ -150,32 +146,32 @@ int YandereCamera::zPointSide(YanPosition point)
 	}
 }
 
-bool YandereCamera::cubeInFrustum(YanPosition middle, float size)
+bool YandereCamera::cube_in_frustum(YanPosition middle, float size)
 {	
 	for(int i = 0; i < 6; ++i)
 	{
-		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z-size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z-size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z-size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z-size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z+size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z+size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z+size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y-size) + _planesArr[i].c * (middle.z+size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z-size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z-size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z-size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z-size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z+size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x-size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z+size) > -_planesArr[i].d)
 			continue;
 			
-		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z+size) + _planesArr[i].d > 0)
+		if(_planesArr[i].a * (middle.x+size) + _planesArr[i].b * (middle.y+size) + _planesArr[i].c * (middle.z+size) > -_planesArr[i].d)
 			continue;
 		
 		return false;
@@ -185,24 +181,24 @@ bool YandereCamera::cubeInFrustum(YanPosition middle, float size)
 }
 
 
-glm::mat4* YandereCamera::projViewMatrixPtr()
+glm::mat4* YandereCamera::proj_view_matrix_ptr()
 {
 	return &_projViewMatrix;
 }
 
-glm::mat4* YandereCamera::viewMatrixPtr()
+glm::mat4* YandereCamera::view_matrix_ptr()
 {
 	assert(_viewMatrixExists);
 	return &_viewMatrix;
 }
 
-glm::mat4* YandereCamera::projectionMatrixPtr()
+glm::mat4* YandereCamera::projection_matrix_ptr()
 {
 	assert(_projectionMatrixExists);
 	return &_projectionMatrix;
 }
 
-void YandereCamera::calculateView()
+void YandereCamera::calculate_view()
 {
 	_viewMatrixExists = true;
 
@@ -212,10 +208,10 @@ void YandereCamera::calculateView()
 
 	_viewMatrix = glm::lookAt(_cameraPosition, _cameraPosition + _cameraForward, _cameraUp);
 	
-	calculatePlanes();
+	calculate_planes();
 }
 
-void YandereCamera::calculatePlanes()
+void YandereCamera::calculate_planes()
 {
 	_projViewMatrix =  _projectionMatrix * _viewMatrix;
 	
@@ -251,10 +247,6 @@ void YandereCamera::calculatePlanes()
 }
 
 //------------------------------------------------------------------------------------------------------------------
-YandereModel::YandereModel()
-{
-}
-
 YandereModel::YandereModel(std::string stringModelPath)
 {
 	vertices.clear();
@@ -382,7 +374,7 @@ YandereModel::YandereModel(std::string stringModelPath)
 	}
 }
 
-void YandereModel::setCurrent(unsigned vertexArrayBuffer, unsigned arrayBuffer, unsigned elementArrayBuffer)
+void YandereModel::set_current(unsigned vertexArrayBuffer, unsigned arrayBuffer, unsigned elementArrayBuffer)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vertexArrayBuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
@@ -580,11 +572,6 @@ std::vector<unsigned>* YandereModel::getIndicesPtr()
 }
 
 //------------------------------------------------------------------------------------------------------------------
-
-YandereTexture::YandereTexture()
-{
-}
-
 YandereTexture::YandereTexture(std::string stringImagePath) : _empty(false)
 {
 	if(stringImagePath.find("!d")==0)
@@ -604,7 +591,7 @@ YandereTexture::YandereTexture(std::string stringImagePath) : _empty(false)
 
 		std::string extension = imagePath.filename().extension();
 
-		if(!parseImage(stringImagePath, extension))
+		if(!parse_image(stringImagePath, extension))
 		{
 			std::cout << "error parsing: " << imagePath.filename() << std::endl;
 		}
@@ -613,11 +600,11 @@ YandereTexture::YandereTexture(std::string stringImagePath) : _empty(false)
 
 YandereTexture::YandereTexture(YandereImage image) : _image(image), _empty(false)
 {
-	_textureType = setTextureType(image.bpp);
+	_textureType = set_texture_type(image.bpp);
 	_image.flip();
 }
 
-void YandereTexture::setCurrent(unsigned textureBuffer)
+void YandereTexture::set_current(unsigned textureBuffer)
 {
 	assert(!_empty);
 
@@ -654,14 +641,14 @@ int YandereTexture::height()
 	return _image.height;
 }
 
-bool YandereTexture::parseImage(std::string imagePath, std::string fileFormat)
+bool YandereTexture::parse_image(std::string imagePath, std::string fileFormat)
 {
-	if(YandereImage::canParse(fileFormat))
+	if(YandereImage::can_parse(fileFormat))
 	{
 		_image = YandereImage(imagePath);
 		_image.flip();
 
-		_textureType = setTextureType(_image.bpp);
+		_textureType = set_texture_type(_image.bpp);
 
 		return true;
 	}
@@ -669,7 +656,7 @@ bool YandereTexture::parseImage(std::string imagePath, std::string fileFormat)
 	return false;
 }
 
-unsigned YandereTexture::setTextureType(uint8_t bpp)
+unsigned YandereTexture::set_texture_type(uint8_t bpp)
 {
 	switch(_image.bpp)
 	{
@@ -687,9 +674,125 @@ unsigned YandereTexture::setTextureType(uint8_t bpp)
 
 //----------------------------------------------------------------------------------------------------------------
 
+YandereShader::YandereShader(std::string shaderText) : _shaderText(shaderText)
+{
+}
+
+std::string& YandereShader::text()
+{
+	return _shaderText;
+}
+
+
+
+YandereShaderProgram::YandereShaderProgram(unsigned programID) : _programID(programID)
+{
+	matrix_setup();
+}
+
+unsigned YandereShaderProgram::add_num(std::string name)
+{
+	return add_any(_shaderProps, 0, 1, name);
+}
+
+unsigned YandereShaderProgram::add_vec2(std::string name)
+{
+	return add_any(_shaderPropsVec2, YVec2{}, 2, name);
+}
+
+unsigned YandereShaderProgram::add_vec3(std::string name)
+{
+	return add_any(_shaderPropsVec3, YVec3{}, 3, name);
+}
+
+unsigned YandereShaderProgram::add_vec4(std::string name)
+{
+	return add_any(_shaderPropsVec4, YVec4{}, 4, name);
+}
+
+
+void YandereShaderProgram::apply_uniforms()
+{
+	std::array<int, 4> vecIndexCounts = {0, 0, 0, 0};
+
+	for(Prop& prop : _propsVec)
+	{
+		switch(prop.length)
+		{
+			case 4:
+			{
+				YVec4 v4Prop = _shaderPropsVec4[vecIndexCounts[3]];
+				glUniform4f(prop.location, v4Prop.x, v4Prop.y, v4Prop.z, v4Prop.w);
+				break;
+			}
+			
+			case 3:
+			{
+				YVec3 v3Prop = _shaderPropsVec3[vecIndexCounts[2]];
+				glUniform3f(prop.location, v3Prop.x, v3Prop.y, v3Prop.z);
+				break;
+			}
+				
+			case 2:
+			{
+				YVec2 v2Prop = _shaderPropsVec2[vecIndexCounts[1]];
+				glUniform2f(prop.location, v2Prop.x, v2Prop.y);
+				break;
+			}
+		
+			default:
+				glUniform1f(prop.location, _shaderProps[vecIndexCounts[0]]);
+				break;
+		}
+		
+		++vecIndexCounts[prop.length-1];
+	}
+}
+
+
+template<typename T, typename V>
+unsigned YandereShaderProgram::add_any(T& type, V vType, int index, std::string name)
+{
+	unsigned propLocation = glGetUniformLocation(_programID, name.c_str());
+	assert(propLocation!=-1);
+	
+	_propsVec.push_back(Prop{index, propLocation});
+	
+	type.push_back(vType);
+	
+	return (type.size()-1)*4;
+}
+
+
+unsigned YandereShaderProgram::program() const
+{
+	return _programID;
+}
+
+
+void YandereShaderProgram::matrix_setup()
+{
+	glUseProgram(_programID);
+
+	_viewMat = glGetUniformLocation(_programID, "viewMat");
+	_projectionMat = glGetUniformLocation(_programID, "projectionMat");
+}
+
+unsigned YandereShaderProgram::view_mat() const
+{
+	return _viewMat;
+}
+
+unsigned YandereShaderProgram::projection_mat() const
+{
+	return _projectionMat;
+}
+
+//----------------------------------------------------------------------------------------------------------------
+
 YandereInitializer::YandereInitializer()
 {
-	loadDefaultModels();
+	load_default_models();
 	_textureMap["!dSOLID"] = YandereTexture("!dSOLID");
 }
 
@@ -711,9 +814,9 @@ YandereInitializer::~YandereInitializer()
 		}
 		for(const auto& shader : _shaderProgramMap)
 		{
-			if(glIsProgram(shader.second))
+			if(glIsProgram(shader.second.program()))
 			{
-				glDeleteProgram(shader.second);
+				glDeleteProgram(shader.second.program());
 			}
 		}
 		if(glIsBuffer(_textureBufferObjectID))
@@ -734,7 +837,7 @@ YandereInitializer::~YandereInitializer()
 	}
 }
 
-void YandereInitializer::setDrawModel(std::string modelName)
+void YandereInitializer::set_draw_model(std::string modelName)
 {
 	if(modelName!=_currentModelUsed)
 	{
@@ -743,26 +846,26 @@ void YandereInitializer::setDrawModel(std::string modelName)
 
 		assert(_modelMap.count(modelName)!=0);
 
-		_modelMap[modelName].setCurrent(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
+		_modelMap[modelName].set_current(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
 	}
 }
 
-void YandereInitializer::setDrawTexture(std::string textureName)
+void YandereInitializer::set_draw_texture(std::string textureName)
 {
 	if(textureName!=_currentTextureUsed)
 	{
 		assert(_textureMap.count(textureName)!=0);
-		_textureMap[textureName].setCurrent(_textureBufferObjectID);
+		_textureMap[textureName].set_current(_textureBufferObjectID);
 	}
 }
 
-void YandereInitializer::setDrawCamera(YandereCamera* camera)
+void YandereInitializer::set_draw_camera(YandereCamera* camera)
 {
 	_mainCamera = camera;
-	updateMatrixPointers(_mainCamera);
+	update_matrix_pointers(_mainCamera);
 }
 
-glm::mat4 YandereInitializer::calculateMatrix(YanTransforms transforms)
+glm::mat4 YandereInitializer::calculate_matrix(YanTransforms transforms)
 {
 	glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(transforms.position.x, transforms.position.y, transforms.position.z));
 	modelMatrix = glm::rotate(modelMatrix, transforms.rotation, glm::vec3(transforms.axis.x, transforms.axis.y, transforms.axis.z));
@@ -770,7 +873,7 @@ glm::mat4 YandereInitializer::calculateMatrix(YanTransforms transforms)
 	return modelMatrix;
 }
 
-void YandereInitializer::configGLBuffers(bool stencil, bool antialiasing, bool culling)
+void YandereInitializer::config_GL_buffers(bool stencil, bool antialiasing, bool culling)
 {
 	int success;
 
@@ -812,16 +915,16 @@ void YandereInitializer::configGLBuffers(bool stencil, bool antialiasing, bool c
 
 	glGenBuffers(1, &_textureBufferObjectID);
 
-	setDrawModel("!dTRIANGLE");
+	set_draw_model("!dTRIANGLE");
 }
 
-void YandereInitializer::updateMatrixPointers(YandereCamera* camera)
+void YandereInitializer::update_matrix_pointers(YandereCamera* camera)
 {
-	_viewMatrix = camera->viewMatrixPtr();
-	_projectionMatrix = camera->projectionMatrixPtr();
+	_viewMatrix = camera->view_matrix_ptr();
+	_projectionMatrix = camera->projection_matrix_ptr();
 }
 
-void YandereInitializer::loadShadersFrom(std::string shadersFolder)
+void YandereInitializer::load_shaders_from(std::string shadersFolder)
 {
 	std::filesystem::path shadersPath(shadersFolder);
 
@@ -847,11 +950,11 @@ void YandereInitializer::loadShadersFrom(std::string shadersFolder)
 			std::cout << "error reading a shader file" << std::endl;
 		}
 
-		assignShader(shaderStr, shaderFilename);
+		_shaderMap[shaderFilename] = YandereShader(shaderStr);
 	}
 }
 
-void YandereInitializer::loadModelsFrom(std::string modelsFolder)
+void YandereInitializer::load_models_from(std::string modelsFolder)
 {
 	std::filesystem::path modelsPath(modelsFolder);
 
@@ -868,7 +971,7 @@ void YandereInitializer::loadModelsFrom(std::string modelsFolder)
 	}
 }
 
-void YandereInitializer::loadDefaultModels()
+void YandereInitializer::load_default_models()
 {
 	std::string dName;
 	std::vector<std::string> defaultNames = {"!dCIRCLE", "!dSQUARE", "!dTRIANGLE", "!dPYRAMID", "!dCUBE"};
@@ -878,7 +981,7 @@ void YandereInitializer::loadDefaultModels()
 	}
 }
 
-void YandereInitializer::loadTexturesFrom(std::string texturesFolder)
+void YandereInitializer::load_textures_from(std::string texturesFolder)
 {
 	std::filesystem::path texturesPath(texturesFolder);
 
@@ -895,7 +998,7 @@ void YandereInitializer::loadTexturesFrom(std::string texturesFolder)
 	}
 }
 
-void YandereInitializer::loadFont(std::string fPath)
+void YandereInitializer::load_font(std::string fPath)
 {
 	std::filesystem::path fontPath(fPath);
 	
@@ -922,15 +1025,15 @@ void YandereInitializer::loadFont(std::string fPath)
 	_fontsMap[fontPath.filename().stem()] = std::move(face);
 }
 
-void YandereInitializer::createShaderProgram(unsigned programID, std::vector<std::string> shaderIDArr)
+unsigned YandereInitializer::create_shader_program(std::vector<std::string> shaderIDArr)
 {
 	assert(!_shaderMap.empty());
 
 	int success;
 
-	const char* vertexShaderSrc = NULL;
-	const char* fragmentShaderSrc = NULL;
-	const char* geometryShaderSrc = NULL;
+	const char* vertexShaderSrc = nullptr;
+	const char* fragmentShaderSrc = nullptr;
+	const char* geometryShaderSrc = nullptr;
 
 	for(const auto& shader : shaderIDArr)
 	{
@@ -941,13 +1044,13 @@ void YandereInitializer::createShaderProgram(unsigned programID, std::vector<std
 	
 		if(currExtension==".fragment")
 		{
-			fragmentShaderSrc = _shaderMap[shader].c_str();
+			fragmentShaderSrc = _shaderMap[shader].text().c_str();
 		} else if(currExtension==".vertex")
 		{
-			vertexShaderSrc = _shaderMap[shader].c_str();
+			vertexShaderSrc = _shaderMap[shader].text().c_str();
 		} else if(currExtension==".geometry")
 		{
-			geometryShaderSrc = _shaderMap[shader].c_str();
+			geometryShaderSrc = _shaderMap[shader].text().c_str();
 		} else
 		{
 			throw std::runtime_error("shader file isnt a .fragment, .vertex or .geometry");
@@ -958,68 +1061,83 @@ void YandereInitializer::createShaderProgram(unsigned programID, std::vector<std
 	unsigned fragmentShaderID;
 	unsigned geometryShaderID;
 
-	_shaderProgramMap[programID] = glCreateProgram();
+	unsigned currProgram = glCreateProgram();
 
-	if(vertexShaderSrc!=NULL)
+	if(vertexShaderSrc!=nullptr)
 	{
 		vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 		glShaderSource(vertexShaderID, 1, &vertexShaderSrc, NULL);
 		glCompileShader(vertexShaderID);
 
 		glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &success);
-		if(!success) outputError(vertexShaderID);
+		if(!success) output_error(vertexShaderID);
 
-		glAttachShader(_shaderProgramMap[programID], vertexShaderID);
+		glAttachShader(currProgram, vertexShaderID);
 	}
 	
-	if(fragmentShaderSrc!=NULL)
+	if(fragmentShaderSrc!=nullptr)
 	{
 		fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(fragmentShaderID, 1, &fragmentShaderSrc, NULL);
 		glCompileShader(fragmentShaderID);
 
 		glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &success);
-		if(!success) outputError(fragmentShaderID);
+		if(!success) output_error(fragmentShaderID);
 
-		glAttachShader(_shaderProgramMap[programID], fragmentShaderID);
+		glAttachShader(currProgram, fragmentShaderID);
 	}
 
-	if(geometryShaderSrc!=NULL)
+	if(geometryShaderSrc!=nullptr)
 	{
 		geometryShaderID = glCreateShader(GL_GEOMETRY_SHADER);
 		glShaderSource(geometryShaderID, 1, &fragmentShaderSrc, NULL);
 		glCompileShader(geometryShaderID);
 
 		glGetShaderiv(geometryShaderID, GL_COMPILE_STATUS, &success);
-		if(!success) outputError(geometryShaderID);
+		if(!success) output_error(geometryShaderID);
 
-		glAttachShader(_shaderProgramMap[programID], geometryShaderID);
+		glAttachShader(currProgram, geometryShaderID);
 	}
 
-	glLinkProgram(_shaderProgramMap[programID]);
+	glLinkProgram(currProgram);
 
-	glGetProgramiv(_shaderProgramMap[programID], GL_LINK_STATUS, &success);
-	if(!success) outputError(_shaderProgramMap[programID], true);
+	glGetProgramiv(currProgram, GL_LINK_STATUS, &success);
+	if(!success) output_error(currProgram, true);
+	
+	_shaderProgramMap[_lastProgramID] = YandereShaderProgram(currProgram);
 
-	if(vertexShaderSrc!=NULL) glDeleteShader(vertexShaderID);
-	if(fragmentShaderSrc!=NULL) glDeleteShader(fragmentShaderID);
-	if(geometryShaderSrc!=NULL) glDeleteShader(geometryShaderID);
+	if(vertexShaderSrc!=nullptr) glDeleteShader(vertexShaderID);
+	if(fragmentShaderSrc!=nullptr) glDeleteShader(fragmentShaderID);
+	if(geometryShaderSrc!=nullptr) glDeleteShader(geometryShaderID);
+	
+	return _lastProgramID++;
 }
 
-void YandereInitializer::switchShaderProgram(unsigned programID)
+YandereShaderProgram* YandereInitializer::shader_program_ptr(unsigned programID)
+{
+	return &_shaderProgramMap[programID];
+}
+
+
+void YandereInitializer::set_shader_program(unsigned programID)
 {
 	assert(_shaderProgramMap.count(programID)!=0);
-	unsigned _shaderProgramID = _shaderProgramMap[programID];
-
-	glUseProgram(_shaderProgramID);
-
-	_shaderViewLocation = glGetUniformLocation(_shaderProgramID, "viewMat");
-	_shaderProjectionLocation = glGetUniformLocation(_shaderProgramID, "projectionMat");
-
-	//this is horribly inefficient but i really dont want to figure out how to design this better
+	YandereShaderProgram shaderProgram = _shaderProgramMap[programID];
+	
+	_storedShaderID = programID;
 }
 
-YandereText YandereInitializer::createText(std::string text, std::string fontName, int size, float x, float y)
+void YandereInitializer::apply_uniforms()
+{
+	YandereShaderProgram* programPtr = &_shaderProgramMap[_storedShaderID];
+
+	glUniformMatrix4fv(programPtr->view_mat(), 1, GL_FALSE, glm::value_ptr(*_viewMatrix));
+	glUniformMatrix4fv(programPtr->projection_mat(), 1, GL_FALSE, glm::value_ptr(*_projectionMatrix));
+
+	programPtr->apply_uniforms();
+}
+
+YandereText YandereInitializer::create_text(std::string text, std::string fontName, int size, float x, float y)
 {	
 	if(!_glewInitialized)
 	{
@@ -1129,18 +1247,13 @@ YandereText YandereInitializer::createText(std::string text, std::string fontNam
 	_textureMap[textureName] = std::move(fontTexture);
 	
 	YandereText outText = YandereText(this, size, letters, textureName);
-	outText.setPosition(x, y);
-	outText.changeText(text);
+	outText.set_position(x, y);
+	outText.change_text(text);
 
 	return std::move(outText);
 }
 
-void YandereInitializer::assignShader(std::string shaderStr, std::string shaderID)
-{
-	_shaderMap[shaderID] = shaderStr;
-}
-
-void YandereInitializer::outputError(unsigned objectID, bool isProgram)
+void YandereInitializer::output_error(unsigned objectID, bool isProgram)
 {
 	char errorInfo[512];
 	if(isProgram)
@@ -1158,7 +1271,7 @@ void YandereInitializer::outputError(unsigned objectID, bool isProgram)
 	throw std::runtime_error(sstream.str());
 }
 
-void YandereInitializer::doGlewInit(bool stencil, bool antialiasing, bool culling)
+void YandereInitializer::do_glew_init(bool stencil, bool antialiasing, bool culling)
 {
 	GLenum err = glewInit();
 	if(err!=GLEW_OK)
@@ -1173,21 +1286,21 @@ void YandereInitializer::doGlewInit(bool stencil, bool antialiasing, bool cullin
 		}
 		
 		#ifdef YANDEBUG
-		glDebugMessageCallback(YandereInitializer::debugCallback, NULL);
+		glDebugMessageCallback(YandereInitializer::debug_callback, NULL);
 		#endif
 	}
 
 	_glewInitialized = true;
 
-	configGLBuffers(stencil, antialiasing, culling);
+	config_GL_buffers(stencil, antialiasing, culling);
 }
 
-bool YandereInitializer::glewInitialized()
+bool YandereInitializer::glew_initialized()
 {
 	return _glewInitialized;
 }
 
-void GLAPIENTRY YandereInitializer::debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+void GLAPIENTRY YandereInitializer::debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
 	std::cout << "opengl error " << type << ": " << message << std::endl;
 }
@@ -1201,13 +1314,13 @@ YandereObject::YandereObject() : _usedModel(""), _usedTexture("")
 YandereObject::YandereObject(YandereInitializer* yanIniter, std::string usedModel, std::string usedTexture, YanTransforms transform, YanColor color, YanBorder border)
  : _transform(transform), _color(color), _border(border), _yanInitializer(yanIniter), _usedModel(usedModel), _usedTexture(usedTexture)
 {
-	assert(_yanInitializer->glewInitialized());
-	yGLSetupCalls(border.enabled);
+	assert(_yanInitializer->glew_initialized());
+	yGL_setup(border.enabled);
 
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObject::yGLSetupCalls(bool borders)
+void YandereObject::yGL_setup(bool borders)
 {
 	if(borders)
 	{
@@ -1218,11 +1331,11 @@ void YandereObject::yGLSetupCalls(bool borders)
 	glGenBuffers(1, &_vertexBufferObject);;
 }
 
-void YandereObject::setPosition(YanPosition position)
+void YandereObject::set_position(YanPosition position)
 {
 	_transform.position = position;
 	
-	matsUpdate();
+	mats_update();
 }
 
 void YandereObject::translate(YanPosition positionDelta)
@@ -1231,54 +1344,54 @@ void YandereObject::translate(YanPosition positionDelta)
 	_transform.position.y += positionDelta.y;
 	_transform.position.z += positionDelta.z;
 		
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObject::setScale(YanScale scale)
+void YandereObject::set_scale(YanScale scale)
 {
 	_transform.scale = scale;
 		
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObject::setRotation(float rotation)
+void YandereObject::set_rotation(float rotation)
 {
 	_transform.rotation = rotation;
 
-	matsUpdate();
+	mats_update();
 }
 
 void YandereObject::rotate(float rotationDelta)
 {
 	_transform.rotation += rotationDelta;
 
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObject::setRotationAxis(YanPosition axis)
+void YandereObject::set_rotationAxis(YanPosition axis)
 {
 	_transform.axis = axis;
 
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObject::setColor(YanColor color)
+void YandereObject::set_color(YanColor color)
 {
 	_color = color;
 
 	_objData.color = _color;
 }
 
-void YandereObject::setBorder(YanBorder border)
+void YandereObject::set_border(YanBorder border)
 {
 	_border = border;
 }
 
-void YandereObject::drawUpdate()
+void YandereObject::draw_update()
 {
 	assert(_usedModel!="" && _usedTexture!="");
-	_yanInitializer->setDrawModel(_usedModel);
-	_yanInitializer->setDrawTexture(_usedTexture);
+	_yanInitializer->set_draw_model(_usedModel);
+	_yanInitializer->set_draw_texture(_usedTexture);
 
 	assert(_yanInitializer->_mainCamera!=nullptr);
 
@@ -1310,10 +1423,7 @@ void YandereObject::drawUpdate()
 	glVertexAttribDivisor(5, 1);
 	glVertexAttribDivisor(6, 1);
 
-	assert(_yanInitializer->_shaderViewLocation!=-1);
-	assert(_yanInitializer->_shaderProjectionLocation!=-1);
-	glUniformMatrix4fv(_yanInitializer->_shaderViewLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_viewMatrix));
-	glUniformMatrix4fv(_yanInitializer->_shaderProjectionLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_projectionMatrix));
+	_yanInitializer->apply_uniforms();
 
 	if(_border.enabled)
 	{
@@ -1336,16 +1446,15 @@ void YandereObject::drawUpdate()
 
 		//it assumes the default flat shading shader is 0 whatever, shouldnt have used enums for this
 		unsigned restoreShader = _yanInitializer->_storedShaderID;
-		_yanInitializer->switchShaderProgram(0);
+		_yanInitializer->set_shader_program(0);
 
 		glBufferData(GL_ARRAY_BUFFER, bufferSize, &_scaledObjData, GL_STATIC_DRAW);
 
-		glUniformMatrix4fv(_yanInitializer->_shaderViewLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_viewMatrix));
-		glUniformMatrix4fv(_yanInitializer->_shaderProjectionLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_projectionMatrix));
+		_yanInitializer->apply_uniforms();
 
 		glDrawElements(GL_TRIANGLES, _yanInitializer->_currentModelSize, GL_UNSIGNED_INT, 0);
 
-		_yanInitializer->switchShaderProgram(restoreShader);
+		_yanInitializer->set_shader_program(restoreShader);
 
 		glStencilMask(0xFF);
 		glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -1357,14 +1466,14 @@ void YandereObject::drawUpdate()
 	glBindVertexArray(0);
 }
 
-void YandereObject::matsUpdate()
+void YandereObject::mats_update()
 {
 	_scaledTransform = _transform;
 	_scaledTransform.scale.x *= _border.width;
 	_scaledTransform.scale.y *= _border.width;
 	_scaledTransform.scale.z *= _border.width;
 
-	glm::mat4 tempMat = _yanInitializer->calculateMatrix(_transform);
+	glm::mat4 tempMat = _yanInitializer->calculate_matrix(_transform);
 
 	_objData.color = _color;
 
@@ -1378,7 +1487,7 @@ void YandereObject::matsUpdate()
 
 	if(_border.enabled)
 	{
-		tempMat = _yanInitializer->calculateMatrix(_scaledTransform);
+		tempMat = _yanInitializer->calculate_matrix(_scaledTransform);
 
 		_scaledObjData.color  = _border.color;
 
@@ -1401,23 +1510,23 @@ YandereObjects::YandereObjects() : _transformsSize(0)
 YandereObjects::YandereObjects(YandereInitializer* yanIniter, std::string usedModel, std::string usedTexture, std::vector<YanTransforms> transformsInstanced, size_t tsize, std::vector<YanColor> colors, YanBorder border)
  : _transforms(transformsInstanced), _transformsSize(tsize), _colors(colors), _border(border), _yanInitializer(yanIniter), _usedModel(usedModel), _usedTexture(usedTexture)
 {
-	assert(_yanInitializer->glewInitialized());
-	yGLSetupCalls(border.enabled);
+	assert(_yanInitializer->glew_initialized());
+	yGL_setup(border.enabled);
 
 	_singleColor=!(colors.size()>1);
 
 	if(transformsInstanced.size()!=0)
 	{
-		matsUpdate();
+		mats_update();
 	}
 }
 
-bool YandereObjects::isEmpty()
+bool YandereObjects::empty()
 {
 	return (_transformsSize==0);
 }
 
-void YandereObjects::yGLSetupCalls(bool borders)
+void YandereObjects::yGL_setup(bool borders)
 {
 	_instancedData.reserve(_transformsSize);
 	_scaledInstancedData.reserve(_transformsSize);
@@ -1431,23 +1540,23 @@ void YandereObjects::yGLSetupCalls(bool borders)
 	glGenBuffers(1, &_instanceVertexBufferObject);;
 }
 
-void YandereObjects::setPositions(std::vector<YanPosition> positions)
+void YandereObjects::set_positions(std::vector<YanPosition> positions)
 {
 	assert(positions.size()==_transformsSize);
 	for(int i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].position = positions[i];
 	}
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObjects::setPosition(YanPosition position)
+void YandereObjects::set_position(YanPosition position)
 {
 	for(int i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].position = position;
 	}
-	matsUpdate();
+	mats_update();
 }
 
 void YandereObjects::translate(std::vector<YanPosition> positionDelta)
@@ -1459,7 +1568,7 @@ void YandereObjects::translate(std::vector<YanPosition> positionDelta)
 		_transforms[i].position.y += positionDelta[i].y;
 		_transforms[i].position.z += positionDelta[i].z;
 	}
-	matsUpdate();
+	mats_update();
 }
 
 void YandereObjects::translate(YanPosition positionDelta)
@@ -1470,27 +1579,27 @@ void YandereObjects::translate(YanPosition positionDelta)
 		_transforms[i].position.y += positionDelta.y;
 		_transforms[i].position.z += positionDelta.z;
 	}
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObjects::setScales(std::vector<YanScale> scales)
+void YandereObjects::set_scales(std::vector<YanScale> scales)
 {
 	assert(scales.size()==_transformsSize);
 	for(int i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].scale = scales[i];
 	}
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObjects::setRotations(std::vector<float> rotations)
+void YandereObjects::set_rotations(std::vector<float> rotations)
 {
 	assert(rotations.size()==_transformsSize);
 	for(int i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].rotation = rotations[i];
 	}
-	matsUpdate();
+	mats_update();
 }
 
 void YandereObjects::rotate(std::vector<float> rotationDeltas)
@@ -1500,20 +1609,20 @@ void YandereObjects::rotate(std::vector<float> rotationDeltas)
 	{
 		_transforms[i].rotation += rotationDeltas[i];
 	}
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObjects::setRotationAxes(std::vector<YanPosition> axes)
+void YandereObjects::set_rotationAxes(std::vector<YanPosition> axes)
 {
 	assert(axes.size()==_transformsSize);
 	for(int i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].axis = axes[i];
 	}
-	matsUpdate();
+	mats_update();
 }
 
-void YandereObjects::setColors(std::vector<YanColor> colors)
+void YandereObjects::set_colors(std::vector<YanColor> colors)
 {
 	assert(colors.size()==_colors.size());
 
@@ -1531,17 +1640,17 @@ void YandereObjects::setColors(std::vector<YanColor> colors)
 	}
 }
 
-void YandereObjects::setBorder(YanBorder border)
+void YandereObjects::set_border(YanBorder border)
 {
 	_border = border;
 }
 
-void YandereObjects::drawUpdate()
+void YandereObjects::draw_update()
 {
-	assert(!isEmpty());
+	assert(!empty());
 
-	_yanInitializer->setDrawModel(_usedModel);
-	_yanInitializer->setDrawTexture(_usedTexture);
+	_yanInitializer->set_draw_model(_usedModel);
+	_yanInitializer->set_draw_texture(_usedTexture);
 	
 	assert(_yanInitializer->_mainCamera!=nullptr);
 
@@ -1573,10 +1682,7 @@ void YandereObjects::drawUpdate()
 	glVertexAttribDivisor(5, 1);
 	glVertexAttribDivisor(6, 1);
 
-	assert(_yanInitializer->_shaderViewLocation!=-1);
-	assert(_yanInitializer->_shaderProjectionLocation!=-1);
-	glUniformMatrix4fv(_yanInitializer->_shaderViewLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_viewMatrix));
-	glUniformMatrix4fv(_yanInitializer->_shaderProjectionLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_projectionMatrix));
+	_yanInitializer->apply_uniforms();
 
 	if(_border.enabled)
 	{
@@ -1599,16 +1705,15 @@ void YandereObjects::drawUpdate()
 
 		//it assumes the default flat shading shader is 0 whatever, shouldnt have used enums for this
 		unsigned restoreShader = _yanInitializer->_storedShaderID;
-		_yanInitializer->switchShaderProgram(0);
+		_yanInitializer->set_shader_program(0);
 
 		glBufferData(GL_ARRAY_BUFFER, bufferSize * _transformsSize, _scaledInstancedData.data(), GL_STATIC_DRAW);
 
-		glUniformMatrix4fv(_yanInitializer->_shaderViewLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_viewMatrix));
-		glUniformMatrix4fv(_yanInitializer->_shaderProjectionLocation, 1, GL_FALSE, glm::value_ptr(*_yanInitializer->_projectionMatrix));
+		_yanInitializer->apply_uniforms();
 
 		glDrawElementsInstanced(GL_TRIANGLES, _yanInitializer->_currentModelSize, GL_UNSIGNED_INT, 0, _transformsSize);
 
-		_yanInitializer->switchShaderProgram(restoreShader);
+		_yanInitializer->set_shader_program(restoreShader);
 
 		glStencilMask(0xFF);
 		glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -1620,7 +1725,7 @@ void YandereObjects::drawUpdate()
 	glBindVertexArray(0);
 }
 
-void YandereObjects::matsUpdate()
+void YandereObjects::mats_update()
 {
 	_scaledTransforms = _transforms;
 
@@ -1633,7 +1738,7 @@ void YandereObjects::matsUpdate()
 
 	for(size_t i = 0; i < _transformsSize; i++)
 	{
-		glm::mat4 tempMat = _yanInitializer->calculateMatrix(_transforms[i]);
+		glm::mat4 tempMat = _yanInitializer->calculate_matrix(_transforms[i]);
 
 		if(!_singleColor)
 		{
@@ -1653,7 +1758,7 @@ void YandereObjects::matsUpdate()
 
 		if(_border.enabled)
 		{
-			tempMat = _yanInitializer->calculateMatrix(_scaledTransforms[i]);
+			tempMat = _yanInitializer->calculate_matrix(_scaledTransforms[i]);
 
 			_scaledInstancedData[i].color  = _border.color;
 
@@ -1676,27 +1781,27 @@ YandereLines::YandereLines() : YandereObjects()
 YandereLines::YandereLines(YandereInitializer* yanIniter, std::vector<std::array<YanPosition, 2>> points, size_t tsize, std::vector<float> widths, std::vector<YanColor> colors, YanBorder border)
  : _points(points), _widths(widths), YandereObjects(yanIniter, "!dSQUARE", "!dSOLID", {}, tsize, colors, border)
 {
-	calculateVariables();
+	calculate_variables();
 }
 
-void YandereLines::setPositions(std::vector<std::array<YanPosition, 2>> points)
+void YandereLines::set_positions(std::vector<std::array<YanPosition, 2>> points)
 {
 	_points = points;
 
-	calculateVariables();
+	calculate_variables();
 }
 
-void YandereLines::setRotations(std::vector<float> rotations)
+void YandereLines::set_rotations(std::vector<float> rotations)
 {
 	for(size_t i = 0; i < _transformsSize; i++)
 	{
 		_transforms[i].rotation = rotations[i];
 	}
 
-	calculateVariables();
+	calculate_variables();
 }
 
-void YandereLines::setWidths(std::vector<float> widths)
+void YandereLines::set_widths(std::vector<float> widths)
 {
 	_widths = widths;
 
@@ -1705,10 +1810,10 @@ void YandereLines::setWidths(std::vector<float> widths)
 		_transforms[i].scale.y = _widths[i];
 	}
 
-	matsUpdate();
+	mats_update();
 }
 
-void YandereLines::calculateVariables()
+void YandereLines::calculate_variables()
 {
 	float lineWidth, lineHeight, lineLength;
 	float angleOffsetX, angleOffsetY;
@@ -1737,7 +1842,7 @@ void YandereLines::calculateVariables()
 		_transforms.push_back({pos, lineLength, _widths[i], 1, rot, 0, 0, 1});
 	}
 
-	matsUpdate();
+	mats_update();
 }
 
 YandereText::YandereText()
@@ -1749,15 +1854,15 @@ _yanInitializer(yanInitializer), _size(size), _letters(letters), _textureName(te
 {
 }
 
-void YandereText::drawUpdate()
+void YandereText::draw_update()
 {
 	for(auto& obj : _letterObjs)
 	{
-		obj.drawUpdate();
+		obj.draw_update();
 	}
 }
 
-void YandereText::changeText(std::string newText)
+void YandereText::change_text(std::string newText)
 {
 	_letterObjs.clear();
 
@@ -1807,7 +1912,7 @@ void YandereText::changeText(std::string newText)
 	}
 }
 
-void YandereText::setPosition(float x, float y)
+void YandereText::set_position(float x, float y)
 {
 	float xDiff = x-(this->x);
 	float yDiff = y-(this->y);
@@ -1826,12 +1931,12 @@ std::array<float, 2> YandereText::getPosition()
 	return {x, y};
 }
 
-float YandereText::textWidth()
+float YandereText::text_width()
 {
 	return _textWidth;
 }
 
-float YandereText::textHeight()
+float YandereText::text_height()
 {
-	return _textHeight;
+	return _textHeight*2;
 }

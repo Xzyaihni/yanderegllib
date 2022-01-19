@@ -17,12 +17,12 @@ inline std::vector<T> lengthsToPrefix(std::vector<T> lengthsArr, T maxVal, uint8
 class YandereImage
 {
 public:
-    enum class ResizeType {NearestNeighbor, AreaSample};
+    enum class ResizeType {nearest_neighbor, area_sample};
 
     YandereImage();
     YandereImage(std::string imagePath);
 
-    void bppResize(uint8_t desiredBpp, uint8_t extraChannel=255);
+    void bpp_resize(uint8_t desiredBpp, uint8_t extraChannel=255);
 
     void resize(unsigned desiredWidth, unsigned desiredHeight, ResizeType resizeType);
     void flip();
@@ -30,12 +30,12 @@ public:
     void grayscale();
 
 	bool read(std::string loadPath);
-    bool saveToFile(std::string savePath);
+    bool save_to_file(std::string savePath);
     
-    unsigned getPixelColorPos(unsigned x, unsigned y, uint8_t color);
-    uint8_t getPixelColor(unsigned x, unsigned y, uint8_t color);
+    unsigned pixel_color_pos(unsigned x, unsigned y, uint8_t color);
+    uint8_t pixel_color(unsigned x, unsigned y, uint8_t color);
 
-    static bool canParse(std::string extension);
+    static bool can_parse(std::string extension);
 
     unsigned width;
     unsigned height;
@@ -44,19 +44,19 @@ public:
     std::vector<uint8_t> image;
 
 private:
-    bool pngRead(bool checkChecksums = false);
-    std::vector<uint8_t> yanDeflate(std::vector<uint8_t>& inputData);
+    bool png_read(bool checkChecksums = false);
+    std::vector<uint8_t> yan_deflate(std::vector<uint8_t>& inputData);
 
-    bool pgmRead();
+    bool pgm_read();
 
-    void pgmSave(std::string savePath);
-    void ppmSave(std::string savePath);
+    void pgm_save(std::string savePath);
+    void ppm_save(std::string savePath);
     
-    std::vector<uint8_t> yanInflate(std::vector<uint8_t>& inputData);
-    std::vector<uint32_t> crcTableGen();
-    void pngSave(std::string savePath);
+    std::vector<uint8_t> yan_inflate(std::vector<uint8_t>& inputData);
+    std::vector<uint32_t> crc_table_gen();
+    void png_save(std::string savePath);
 
-    uint8_t subPositive(int lVar, int rVar);
+    uint8_t sub_positive(int lVar, int rVar);
 
     std::string _imagePath;
 };

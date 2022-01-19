@@ -106,11 +106,11 @@ YandereImage::YandereImage(std::string imagePath) : _imagePath(imagePath)
 {
     if(!read(imagePath))
     {
-    	std::cout << "cant read " << imagePath << std::endl;
+    	throw std::runtime_error("cant read " + imagePath);
     }
 }
 
-std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
+std::vector<uint8_t> YandereImage::yan_deflate(std::vector<uint8_t>& inputData)
 {
     std::vector<uint8_t> deflatedData;
 
@@ -677,12 +677,12 @@ std::vector<uint8_t> YandereImage::yanDeflate(std::vector<uint8_t>& inputData)
     return std::move(deflatedData);
 }
 
-uint8_t YandereImage::subPositive(int lVar, int rVar)
+uint8_t YandereImage::sub_positive(int lVar, int rVar)
 {
     return lVar + rVar - 256;
 }
 
-bool YandereImage::pngRead(bool checkChecksums)
+bool YandereImage::png_read(bool checkChecksums)
 {
     std::ifstream inputStream(_imagePath, std::ios::binary);
 
@@ -782,7 +782,7 @@ bool YandereImage::pngRead(bool checkChecksums)
             auto startTime = std::chrono::high_resolution_clock::now();
             #endif
 
-            std::vector<uint8_t> imageData = yanDeflate(deflateStream);
+            std::vector<uint8_t> imageData = yan_deflate(deflateStream);
 
             #ifdef YANTIMINGS
             auto timeTaken = std::chrono::high_resolution_clock::now() - startTime;
@@ -828,7 +828,7 @@ bool YandereImage::pngRead(bool checkChecksums)
                                         pixelData = imageData[streamPos];
                                     } else
                                     {
-                                        pixelData = subPositive(imageData[streamPos], imageData[streamPos-bpp]);
+                                        pixelData = sub_positive(imageData[streamPos], imageData[streamPos-bpp]);
                                         imageData[streamPos] = pixelData;
                                     }
                                     break;
@@ -841,7 +841,7 @@ bool YandereImage::pngRead(bool checkChecksums)
                                     } else
                                     {
                                         unsigned aboveIndex = streamPos-(1+(tempWidth*valuesPerPixel)/valsPerByte); //the +1 is to skip the filter type for current line
-                                        pixelData = subPositive(imageData[streamPos], imageData[aboveIndex]);
+                                        pixelData = sub_positive(imageData[streamPos], imageData[aboveIndex]);
                                         imageData[streamPos] = pixelData;
                                     }
                                     break;
@@ -853,7 +853,7 @@ bool YandereImage::pngRead(bool checkChecksums)
                                     uint8_t leftPixel = x<bpp ? 0 : imageData[streamPos-bpp];
 
                                     uint8_t rightSidePixel = (leftPixel+upPixel)/2;
-                                    pixelData = subPositive(imageData[streamPos], rightSidePixel);
+                                    pixelData = sub_positive(imageData[streamPos], rightSidePixel);
                                     imageData[streamPos] = pixelData;
                                     break;
                                 }
@@ -882,7 +882,7 @@ bool YandereImage::pngRead(bool checkChecksums)
                                         rightSidePixel = upLeftPixel;
                                     }
 
-                                    pixelData = subPositive(imageData[streamPos], rightSidePixel);
+                                    pixelData = sub_positive(imageData[streamPos], rightSidePixel);
                                     imageData[streamPos] = pixelData;
                                     break;
                                 }
@@ -915,7 +915,7 @@ bool YandereImage::pngRead(bool checkChecksums)
     return true;
 }
 
-std::vector<uint8_t> YandereImage::yanInflate(std::vector<uint8_t>& inputData)
+std::vector<uint8_t> YandereImage::yan_inflate(std::vector<uint8_t>& inputData)
 {
 	std::vector<uint8_t> inflatedData;
 	
@@ -1120,7 +1120,7 @@ std::vector<uint8_t> YandereImage::yanInflate(std::vector<uint8_t>& inputData)
 	return std::move(inflatedData);
 }
 
-std::vector<uint32_t> YandereImage::crcTableGen()
+std::vector<uint32_t> YandereImage::crc_table_gen()
 {
 	std::vector<uint32_t> crcTable;
 	crcTable.reserve(256);
@@ -1146,7 +1146,7 @@ std::vector<uint32_t> YandereImage::crcTableGen()
 	return crcTable;
 }
 
-void YandereImage::pngSave(std::string savePath)
+void YandereImage::png_save(std::string savePath)
 {
     std::ofstream outStream(savePath, std::ios::binary);
 
@@ -1216,7 +1216,7 @@ void YandereImage::pngSave(std::string savePath)
 				}
 			}
 			
-			std::vector<uint8_t> inflatedBytes = yanInflate(imageBytes);
+			std::vector<uint8_t> inflatedBytes = yan_inflate(imageBytes);
 			
 			dataChunk.insert(dataChunk.end(), inflatedBytes.begin(), inflatedBytes.end()); //no point trying to do this efficiently, have to convert from uint8_t to char
 			
@@ -1274,7 +1274,7 @@ void YandereImage::pngSave(std::string savePath)
 		}
 		
 		//crc stuff
-		std::vector<uint32_t> crcTable = crcTableGen();
+		std::vector<uint32_t> crcTable = crc_table_gen();
 		
 		uint32_t chunkCRC = 0xffffffff;
 		
@@ -1305,7 +1305,7 @@ void YandereImage::pngSave(std::string savePath)
     outStream.close();
 }
 
-bool YandereImage::pgmRead()
+bool YandereImage::pgm_read()
 {
     //im not parsing comments because NO
     std::ifstream readStream(_imagePath, std::ios::binary);
@@ -1364,7 +1364,7 @@ bool YandereImage::pgmRead()
     return true;
 }
 
-void YandereImage::pgmSave(std::string savePath)
+void YandereImage::pgm_save(std::string savePath)
 {
     if(bpp!=1)
     {
@@ -1416,7 +1416,7 @@ void YandereImage::pgmSave(std::string savePath)
     outStream.close();
 }
 
-void YandereImage::ppmSave(std::string savePath)
+void YandereImage::ppm_save(std::string savePath)
 {
     if(bpp!=3)
     {
@@ -1503,7 +1503,7 @@ void YandereImage::grayscale()
     image = std::move(grayscaleImage);
 }
 
-void YandereImage::bppResize(uint8_t desiredBpp, uint8_t extraChannel)
+void YandereImage::bpp_resize(uint8_t desiredBpp, uint8_t extraChannel)
 {
     if(bpp==desiredBpp)
     {
@@ -1564,7 +1564,7 @@ void YandereImage::resize(unsigned desiredWidth, unsigned desiredHeight, ResizeT
         {
             switch(resizeType)
             {
-                case ResizeType::NearestNeighbor:
+                case ResizeType::nearest_neighbor:
                 {
                     float ratioX = x/static_cast<float>(desiredWidth);
                     float ratioY = y/static_cast<float>(desiredHeight);
@@ -1581,7 +1581,7 @@ void YandereImage::resize(unsigned desiredWidth, unsigned desiredHeight, ResizeT
                     break;
                 }
 
-                case ResizeType::AreaSample:
+                case ResizeType::area_sample:
                 {
                     float leftBorder = (x/resizeRatioWidth-currentPixelWidthHalf);
                     leftBorder = leftBorder < 0 ? 0 : leftBorder;
@@ -1710,23 +1710,23 @@ void YandereImage::flip()
     image = std::move(flippedData);
 }
 
-bool YandereImage::saveToFile(std::string savePath)
+bool YandereImage::save_to_file(std::string savePath)
 {
     std::filesystem::path saveFilepath(savePath);
 
     if(saveFilepath.extension()==".pgm")
     {
-        pgmSave(savePath);
+        pgm_save(savePath);
 
         return true;
     } else if(saveFilepath.extension()==".ppm")
     {
-    	ppmSave(savePath);
+    	ppm_save(savePath);
     	
     	return true;
     } else if(saveFilepath.extension()==".png")
     {
-    	pngSave(savePath);
+    	png_save(savePath);
     	
     	return true;
     }
@@ -1741,28 +1741,28 @@ bool YandereImage::read(std::string loadPath)
 
     if(iPath.extension()==".png")
     {
-        pngRead();
+        png_read();
         return true;
     } else if(iPath.extension()==".pgm")
     {
-        pgmRead();
+        pgm_read();
         return true;
     }
     
     return false;
 }
 
-unsigned YandereImage::getPixelColorPos(unsigned x, unsigned y, uint8_t color)
+unsigned YandereImage::pixel_color_pos(unsigned x, unsigned y, uint8_t color)
 {
 	return y*width*bpp+x*bpp+color;
 }
 
-uint8_t YandereImage::getPixelColor(unsigned x, unsigned y, uint8_t color)
+uint8_t YandereImage::pixel_color(unsigned x, unsigned y, uint8_t color)
 {
 	return image[y*width*bpp+x*bpp+color];
 }
 
-bool YandereImage::canParse(std::string extension)
+bool YandereImage::can_parse(std::string extension)
 {
     if(extension=="png" || extension==".png")
     {
