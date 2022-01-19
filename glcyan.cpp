@@ -1123,7 +1123,7 @@ void YandereInitializer::set_shader_program(unsigned programID)
 {
 	assert(_shaderProgramMap.count(programID)!=0);
 	
-	glUseProgram(programID);
+	glUseProgram(_shaderProgramMap[programID].program());
 	
 	_storedShaderID = programID;
 }
