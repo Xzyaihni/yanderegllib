@@ -168,7 +168,7 @@ void YanderePool::run(A arg)
 	_poolHolder->run(pArg.get());
 }
 
-void YanderePool::exit_threads()
+inline void YanderePool::exit_threads()
 {
 	_poolHolder->exit_threads();
 }
