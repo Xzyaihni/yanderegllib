@@ -63,6 +63,8 @@ public:
 	
 	YanderePool(int numThreads, F callFunc, A... args);
 	
+	YanderePool<F, A...>& operator=(const YanderePool<F, A...>& other);
+	
 	void run(fArgType arg);
 	void run();
 	
@@ -71,7 +73,7 @@ public:
 private:
 	void work_func();
 
-	std::mutex _waitMutex;
+	mutable std::mutex _waitMutex;
 	std::condition_variable _condVar;
 
 	F _callFunc;
@@ -112,6 +114,41 @@ YanderePool<F, A...>::YanderePool(int numThreads, F callFunc, A... args) : _call
 
 
 template<typename F, typename... A>
+YanderePool<F, A...>& YanderePool<F, A...>::operator=(const YanderePool<F, A...>& other)
+{
+	if(this!=&other)
+	{
+		exit_threads();
+	
+		std::lock(_waitMutex, other._waitMutex);
+		std::lock_guard<std::mutex> myLock(_waitMutex, std::adopt_lock);
+		std::lock_guard<std::mutex> otherLock(other._waitMutex, std::adopt_lock);
+		
+		
+		_callFunc = other._callFunc;
+		_classPtr = other._classPtr;
+		
+		_argsQueue = other._argsQueue;
+		
+		_threadNum = other._threadNum;
+		_threadsRunning = other._threadsRunning;
+		_empty = other._empty;
+		
+		
+		_threadsVec.clear();
+		
+		_threadsVec.reserve(_threadNum);
+		for(int i = 0; i < _threadNum; ++i)
+		{
+			_threadsVec.emplace_back(std::thread(&YanderePool::work_func, this));
+		}
+	}
+	
+	return *this;
+}
+
+
+template<typename F, typename... A>
 void YanderePool<F, A...>::run(fArgType pArg)
 {
 	assert(!_empty);
@@ -136,7 +173,6 @@ void YanderePool<F, A...>::run()
 template<typename F, typename... A>
 void YanderePool<F, A...>::exit_threads()
 {
-	assert(!_empty);
 	if(!_threadsRunning)
 		return;
 
