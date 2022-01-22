@@ -64,11 +64,15 @@ public:
 	T arg;
 };
 
+
 class PoolBase
 {
 public:
 	PoolBase() {};
 	virtual ~PoolBase() = default;
+	
+	virtual void run(PassArg* arg) = 0;
+	virtual void exit_threads() = 0;
 };
 
 
@@ -77,7 +81,9 @@ class PoolCore : public PoolBase
 {
 private:
 	//nice one liner x3
-	using fArgType = std::conditional_t<std::is_member_function_pointer<F>::value, typename YanTemplates::element_tuple<1, A...>::type, typename YanTemplates::element_tuple<0, A...>::type>;
+	using fArgType = std::conditional_t<std::is_member_function_pointer<F>::value,
+	typename YanTemplates::element_tuple<1, A...>::type,
+	typename YanTemplates::element_tuple<0, A...>::type>;
 
 public:
 	~PoolCore() {exit_threads();};
@@ -111,30 +117,6 @@ private:
 
 
 
-class YanderePool;
-
-class TypeHolder
-{
-public:
-	virtual ~TypeHolder() = default;
-	
-	virtual void run(PassArg* arg) = 0;
-	virtual void exit_threads() = 0;
-};
-
-template<class T>
-class TypeTemplate : public TypeHolder
-{
-public:
-	TypeTemplate(T* typePtr) : _typePtr(typePtr) {};
-
-	void run(PassArg* arg) {_typePtr->run(arg);};
-	void exit_threads() {_typePtr->exit_threads();};
-	
-private:
-	T* _typePtr;
-};
-
 class YanderePool
 {
 public:
@@ -145,32 +127,45 @@ public:
 	
 	template<typename A>
 	void run(A arg);
+	void run();
 	
 	void exit_threads();
 
 private:
-	std::unique_ptr<TypeHolder> _poolHolder;
 	std::unique_ptr<PoolBase> _tPool;
+	
+	bool _empty = true;
 };
 
 
 template<typename F, typename... A>
-YanderePool::YanderePool(int numThreads, F callFunc, A... args)
+YanderePool::YanderePool(int numThreads, F callFunc, A... args) : _empty(false)
 {
 	_tPool = std::make_unique<PoolCore<F, A...>>(numThreads, callFunc, args...);
-	_poolHolder = std::make_unique<TypeTemplate<PoolCore<F, A...>>>(dynamic_cast<PoolCore<F, A...>*>(_tPool.get()));
 }
 
 template<typename A>
 void YanderePool::run(A arg)
 {
+	assert(!_empty);	
+	
 	std::unique_ptr<PassArg> pArg = std::make_unique<ArgCore<A>>(arg);
-	_poolHolder->run(pArg.get());
+	_tPool->run(pArg.get());
+}
+
+inline void YanderePool::run()
+{
+	assert(!_empty);	
+	
+	std::unique_ptr<PassArg> pArg = std::make_unique<ArgCore<void*>>(nullptr);
+	_tPool->run(pArg.get());
 }
 
 inline void YanderePool::exit_threads()
 {
-	_poolHolder->exit_threads();
+	assert(!_empty);	
+
+	_tPool->exit_threads();
 }
 
 
