@@ -365,7 +365,7 @@ YandereModel::YandereModel(std::string stringModelPath)
 	{
 		std::filesystem::path modelPath(stringModelPath);
 
-		std::string extension = modelPath.filename().extension();
+		std::string extension = modelPath.filename().extension().string();
 
 		if(!parseModel(stringModelPath, extension))
 		{
@@ -589,7 +589,7 @@ YandereTexture::YandereTexture(std::string stringImagePath) : _empty(false)
 	{
 		std::filesystem::path imagePath(stringImagePath);
 
-		std::string extension = imagePath.filename().extension();
+		std::string extension = imagePath.filename().extension().string();
 
 		if(!parse_image(stringImagePath, extension))
 		{
@@ -938,7 +938,7 @@ void YandereInitializer::load_shaders_from(std::string shadersFolder)
 		std::ifstream shaderSrcFile(file.path().string());
 		std::string shaderStr;
 
-		std::string shaderFilename = file.path().filename();
+		std::string shaderFilename = file.path().filename().string();
 
 		if(shaderSrcFile.good())
 		{
@@ -965,9 +965,9 @@ void YandereInitializer::load_models_from(std::string modelsFolder)
 
 	for(const auto& file : std::filesystem::directory_iterator(modelsPath))
 	{
-		std::string modelFilename = file.path().filename().stem();
+		std::string modelFilename = file.path().filename().stem().string();
 
-		_modelMap[modelFilename] = std::move(YandereModel(file.path()));
+		_modelMap[modelFilename] = std::move(YandereModel(file.path().string()));
 	}
 }
 
@@ -1001,6 +1001,7 @@ void YandereInitializer::load_textures_from(std::string texturesFolder)
 void YandereInitializer::load_font(std::string fPath)
 {
 	std::filesystem::path fontPath(fPath);
+	std::string fontString = fontPath.string();
 	
 	if(!std::filesystem::exists(fontPath))
 	{
@@ -1017,7 +1018,7 @@ void YandereInitializer::load_font(std::string fPath)
 	}
 	
 	FT_Face face;
-	if(FT_Error err = FT_New_Face(_ftLib, fontPath.c_str(), 0, &face); err!=FT_Err_Ok)
+	if(FT_Error err = FT_New_Face(_ftLib, fontString.c_str(), 0, &face); err!=FT_Err_Ok)
 	{
 		throw std::runtime_error("[ERROR_"+std::to_string(err)+"] loading font at: "+fontPath.string());
 	}
@@ -1037,7 +1038,7 @@ unsigned YandereInitializer::create_shader_program(std::vector<std::string> shad
 
 	for(const auto& shader : shaderIDArr)
 	{
-		std::string currExtension = std::filesystem::path(shader).extension();
+		std::string currExtension = std::filesystem::path(shader).extension().string();
 	
 		if(_shaderMap.count(shader)==0)
 			throw std::runtime_error("shader file doesnt exist");
