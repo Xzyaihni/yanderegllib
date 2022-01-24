@@ -992,7 +992,7 @@ void YandereInitializer::load_textures_from(std::string texturesFolder)
 
 	for(const auto& file : std::filesystem::directory_iterator(texturesPath))
 	{
-		std::string textureFilename = file.path().filename().stem();
+		std::string textureFilename = file.path().filename().stem().string();
 
 		_textureMap[textureFilename] = std::move(YandereTexture(file.path().string()));
 	}
