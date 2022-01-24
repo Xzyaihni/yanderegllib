@@ -369,7 +369,7 @@ YandereModel::YandereModel(std::string stringModelPath)
 
 		if(!parseModel(stringModelPath, extension))
 		{
-			throw std::runtime_error(std::string("error parsing: ") + std::string(modelPath.filename()));
+			throw std::runtime_error(std::string("error parsing: ") + modelPath.filename().string());
 		}
 	}
 }
@@ -994,7 +994,7 @@ void YandereInitializer::load_textures_from(std::string texturesFolder)
 	{
 		std::string textureFilename = file.path().filename().stem();
 
-		_textureMap[textureFilename] = std::move(YandereTexture(file.path()));
+		_textureMap[textureFilename] = std::move(YandereTexture(file.path().string()));
 	}
 }
 
@@ -1023,7 +1023,7 @@ void YandereInitializer::load_font(std::string fPath)
 		throw std::runtime_error("[ERROR_"+std::to_string(err)+"] loading font at: "+fontPath.string());
 	}
 	
-	_fontsMap[fontPath.filename().stem()] = std::move(face);
+	_fontsMap[fontPath.filename().stem().string()] = std::move(face);
 }
 
 unsigned YandereInitializer::create_shader_program(std::vector<std::string> shaderIDArr)
