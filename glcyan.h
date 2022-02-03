@@ -423,7 +423,7 @@ private:
 public:
 	YandereObjects();
 
-	YandereObjects(YandereInitializer*, std::string usedModel, std::string usedTexture, std::vector<YanTransforms> transforms, size_t s, std::vector<YanColor> colors = {{}}, YanBorder border = {});
+	YandereObjects(YandereInitializer*, std::string usedModel, std::string usedTexture, std::vector<YanTransforms> transforms, size_t size, std::vector<YanColor> colors = {{}}, YanBorder border = {});
 
 	bool empty();
 
@@ -468,16 +468,36 @@ private:
 	std::vector<ObjectData> _scaledInstancedData;
 };
 
+
+class YandereLine : public YandereObject
+{
+public:
+	YandereLine() {};
+
+	YandereLine(YandereInitializer*, YanPosition point0, YanPosition point1, float width, YanColor color = {}, YanBorder border = {});
+
+	void set_positions(YanPosition point0, YanPosition point1);
+	void set_widths(float width);
+	void set_rotations(float rotation);
+	
+private:
+	void calculate_variables();
+
+	YanPosition _point0;
+	YanPosition _point1;
+	float _width;
+};
+
 class YandereLines : public YandereObjects
 {
 public:
-	YandereLines();
+	YandereLines() {};
 
-	YandereLines(YandereInitializer*, std::vector<std::array<YanPosition, 2>> p, size_t s, std::vector<float> w, std::vector<YanColor> c = {}, YanBorder b = {});
+	YandereLines(YandereInitializer*, std::vector<std::array<YanPosition, 2>> points, size_t size, std::vector<float> widths, std::vector<YanColor> colors = {}, YanBorder border = {});
 
-	void set_positions(std::vector<std::array<YanPosition, 2>>);
-	void set_widths(std::vector<float>);
-	void set_rotations(std::vector<float>);
+	void set_positions(std::vector<std::array<YanPosition, 2>> points);
+	void set_widths(std::vector<float> widths);
+	void set_rotations(std::vector<float> rotations);
 	
 private:
 	void calculate_variables();

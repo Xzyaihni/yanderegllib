@@ -1776,9 +1776,56 @@ void YandereObjects::mats_update()
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-YandereLines::YandereLines() : YandereObjects()
+YandereLine::YandereLine(YandereInitializer* yanIniter, YanPosition point0, YanPosition point1, float width, YanColor color, YanBorder border)
+ : _point0(point0), _point1(point1), _width(width), YandereObject(yanIniter, "!dSQUARE", "!dSOLID", {}, color, border)
 {
+	calculate_variables();
 }
+
+void YandereLine::set_positions(YanPosition point0, YanPosition point1)
+{
+	_point0 = point0;
+	_point1 = point1;
+
+	calculate_variables();
+}
+
+void YandereLine::set_rotations(float rotation)
+{
+	_transform.rotation = rotation;
+
+	calculate_variables();
+}
+
+void YandereLine::set_widths(float width)
+{
+	_width = width;
+
+	_transform.scale.y = _width;
+
+	mats_update();
+}
+
+void YandereLine::calculate_variables()
+{
+	float lineWidth = (_point1.x-_point0.x);
+	float lineHeight = (_point1.y-_point0.y);
+
+	float lineLength = std::sqrt((lineWidth*lineWidth)+(lineHeight*lineHeight))/2;
+
+	float rot = std::atan2(lineHeight, lineWidth);
+
+	float angleOffsetX = (1-std::cos(rot))*lineLength;
+	float angleOffsetY = (std::sin(rot))*lineLength;
+
+	YanPosition pos = {_point0.x+lineLength-angleOffsetX, _point0.y+angleOffsetY, _point0.z};
+
+	_transform = {pos, lineLength, _width, 1, rot, 0, 0, 1};
+
+	mats_update();
+}
+
+
 
 YandereLines::YandereLines(YandereInitializer* yanIniter, std::vector<std::array<YanPosition, 2>> points, size_t tsize, std::vector<float> widths, std::vector<YanColor> colors, YanBorder border)
  : _points(points), _widths(widths), YandereObjects(yanIniter, "!dSQUARE", "!dSOLID", {}, tsize, colors, border)
