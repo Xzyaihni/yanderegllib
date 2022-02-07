@@ -576,7 +576,7 @@ std::vector<uint8_t> YandereImage::yan_deflate(std::vector<uint8_t>& inputData)
 
                         deflatedData.push_back(outBits);
                         continue;
-                    } else if(checkBits>0xc0)
+                    } else if(checkBits>0xbf)
                     {
                         //its 280-287
                         checkBits |= (inputData[i]>>bitOffset)&0x1;
