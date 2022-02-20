@@ -841,12 +841,13 @@ void YandereInitializer::set_draw_model(std::string modelName)
 {
 	if(modelName!=_currentModelUsed)
 	{
-		_currentModelSize = _modelMap[modelName].getIndicesPtr()->size();
-		_currentModelUsed = modelName;
-
 		assert(_modelMap.count(modelName)!=0);
-
-		_modelMap[modelName].set_current(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
+		
+		_currentModelUsed = modelName;
+		
+		YandereModel& currModel = _modelMap.at(modelName);
+		_currentModelSize = currModel.getIndicesPtr()->size();
+		currModel.set_current(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
 	}
 }
 
@@ -855,7 +856,8 @@ void YandereInitializer::set_draw_texture(std::string textureName)
 	if(textureName!=_currentTextureUsed)
 	{
 		assert(_textureMap.count(textureName)!=0);
-		_textureMap[textureName].set_current(_textureBufferObjectID);
+		
+		_textureMap.at(textureName).set_current(_textureBufferObjectID);
 	}
 }
 
@@ -1394,6 +1396,9 @@ void YandereObject::draw_update()
 	assert(_usedModel!="" && _usedTexture!="");
 	_yanInitializer->set_draw_model(_usedModel);
 	_yanInitializer->set_draw_texture(_usedTexture);
+	
+	if(_yanInitializer->_currentModelSize==0)
+		return;
 
 	assert(_yanInitializer->_mainCamera!=nullptr);
 
@@ -1653,6 +1658,9 @@ void YandereObjects::draw_update()
 
 	_yanInitializer->set_draw_model(_usedModel);
 	_yanInitializer->set_draw_texture(_usedTexture);
+	
+	if(_yanInitializer->_currentModelSize==0)
+		return;
 	
 	assert(_yanInitializer->_mainCamera!=nullptr);
 
