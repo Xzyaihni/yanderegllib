@@ -120,9 +120,7 @@ YanderePool<F, A...>& YanderePool<F, A...>::operator=(const YanderePool<F, A...>
 	{
 		exit_threads();
 	
-		std::lock(_waitMutex, other._waitMutex);
-		std::lock_guard<std::mutex> myLock(_waitMutex, std::adopt_lock);
-		std::lock_guard<std::mutex> otherLock(other._waitMutex, std::adopt_lock);
+		std::scoped_lock<std::mutex> myLock(_waitMutex, other._waitMutex);
 		
 		
 		_callFunc = other._callFunc;
@@ -152,7 +150,7 @@ template<typename F, typename... A>
 void YanderePool<F, A...>::run(fArgType pArg)
 {
 	assert(!_empty);
-	std::unique_lock<std::mutex> lock(_waitMutex);
+	std::lock_guard<std::mutex> lock(_waitMutex);
 	
 	_argsQueue.push(pArg);
 	
@@ -163,7 +161,7 @@ template<typename F, typename... A>
 void YanderePool<F, A...>::run()
 {
 	assert(!_empty);
-	std::unique_lock<std::mutex> lock(_waitMutex);
+	std::lock_guard<std::mutex> lock(_waitMutex);
 	
 	_argsQueue.push(nullptr);
 	
@@ -177,7 +175,7 @@ void YanderePool<F, A...>::exit_threads()
 		return;
 
 	{
-		std::unique_lock<std::mutex> lock(_waitMutex);
+		std::lock_guard<std::mutex> lock(_waitMutex);
 	
 		_threadsRunning = false;
 	}
