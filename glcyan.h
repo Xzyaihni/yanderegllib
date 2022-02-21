@@ -9,7 +9,7 @@
 
 #include <vector>
 #include <array>
-#include <unordered_map>
+#include <map>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -85,6 +85,9 @@ struct LetterData
 	float originY;
 	float hDist;
 };
+
+enum DefaultTexture {solid = 0};
+enum DefaultModel {square = 0, circle, triangle, cube, pyramid, LAST};
 
 class YandereCamera
 {
@@ -170,10 +173,7 @@ public:
     YandereModel() {};
     YandereModel(std::string);
 
-    void set_current(unsigned, unsigned, unsigned);
-
-    std::vector<float>* getVerticesPtr();
-    std::vector<unsigned>* getIndicesPtr();
+    void set_current(unsigned, unsigned, unsigned) const;
     
     std::vector<float> vertices;
 	std::vector<unsigned> indices;
@@ -189,10 +189,10 @@ public:
     YandereTexture(std::string stringImagePath);
     YandereTexture(YandereImage image);
 
-    void set_current(unsigned);
+    void set_current(unsigned) const;
     
-    int width();
-    int height();
+    int width() const;
+    int height() const;
     
 private:
     bool parse_image(std::string, std::string);
@@ -206,16 +206,23 @@ private:
     bool _empty = true;
 };
 
+
+enum class ShaderType {fragment, vertex, geometry};
+
 class YandereShader
 {
 public:
 	YandereShader() {};
-	YandereShader(std::string shaderText);
+	YandereShader(std::string shaderText, ShaderType shaderType);
 	
 	std::string& text();
 
+	ShaderType shader_type();
+
 private:
 	std::string _shaderText;
+	
+	ShaderType _shaderType;
 };
 
 class YandereShaderProgram
@@ -290,30 +297,46 @@ public:
 	void do_glew_init(bool stencil = true, bool antialiasing = true, bool culling = true);
 	bool glew_initialized();
 
-	void set_draw_model(std::string modelName);
-	void set_draw_texture(std::string textureName);
-	void set_shader_program(unsigned programID);
+	void set_draw_model(const unsigned modelID);
+	void set_draw_texture(const unsigned textureID);
+	void set_shader_program(const unsigned programID);
+	
+	unsigned add_model(YandereModel& model);
+	unsigned add_model(YandereModel&& model);
+	void remove_model(const unsigned modelID);
+	void set_model(const unsigned modelID, YandereModel& model);
+	void set_model(const unsigned modelID, YandereModel&& model);
+	const YandereModel model(const unsigned modelID);
+	
+	unsigned add_texture(YandereTexture& texture);
+	unsigned add_texture(YandereTexture&& texture);
+	void remove_texture(const unsigned textureID);
+	void set_texture(const unsigned textureID, YandereTexture& texture);
+	void set_texture(const unsigned textureID, YandereTexture&& texture);
+	const YandereTexture texture(const unsigned textureID);
 	
 	void set_draw_camera(YandereCamera* camera);
 
-	void load_shaders_from(std::string shadersFolder);
-	void load_models_from(std::string modelsFolder);
-	void load_textures_from(std::string texturesFolder);
+	std::map<std::string, unsigned> load_shaders_from(std::string shadersFolder);
+	std::map<std::string, unsigned> load_models_from(std::string modelsFolder);
+	std::map<std::string, unsigned> load_textures_from(std::string texturesFolder);
 
 	void load_font(std::string fPath);
 
-	unsigned create_shader_program(std::vector<std::string> shaderIDArr);
-	YandereShaderProgram* shader_program_ptr(unsigned programID);
+	unsigned create_shader_program(std::vector<unsigned> shaderIDVec);
+	YandereShaderProgram* shader_program_ptr(const unsigned programID);
 
 	YandereText create_text(std::string text, std::string fontName, int size, float x, float y);
 
 	glm::mat4 calculate_matrix(YanTransforms transforms);
-	
-	//probably not a good idea to use these directly
-	std::unordered_map<std::string, YandereModel> _modelMap;
-	std::unordered_map<std::string, YandereTexture> _textureMap;
 
 private:
+	unsigned add_shader(YandereShader& shader);
+	unsigned add_shader(YandereShader&& shader);
+	
+	unsigned add_shader_program(YandereShaderProgram& program);
+	unsigned add_shader_program(YandereShaderProgram&& program);
+
 	void output_error(unsigned, bool = false);
 
 	void config_GL_buffers(bool s = true, bool a = true, bool c = true);
@@ -329,21 +352,23 @@ private:
 
 	YandereCamera* _mainCamera = nullptr;
 
-	unsigned _lastProgramID = 0;
 	unsigned _storedShaderID = -1;
 
 	glm::mat4* _viewMatrix = nullptr;
 	glm::mat4* _projectionMatrix = nullptr;
 
-    std::string _currentModelUsed;
     size_t _currentModelSize;
-
-    std::string _currentTextureUsed;
     
-    std::unordered_map<std::string, YandereShader> _shaderMap;
-	std::unordered_map<unsigned, YandereShaderProgram> _shaderProgramMap;
+    std::vector<unsigned> _emptyModels;
+    std::vector<YandereModel> _modelVec;
+    
+    std::vector<unsigned> _emptyTextures;
+	std::vector<YandereTexture> _textureVec;
+    std::vector<YandereShader> _shaderVec;
+    
+	std::vector<YandereShaderProgram> _shaderProgramVec;
 	
-	std::unordered_map<std::string, FT_Face> _fontsMap;
+	std::map<std::string, FT_Face> _fontsMap;
 	
 	FT_Library _ftLib;
 	bool _fontInit = false;
@@ -373,7 +398,7 @@ private:
 public:
 	YandereObject();
 
-	YandereObject(YandereInitializer*, std::string usedModel, std::string usedTexture, YanTransforms transform, YanColor color = {}, YanBorder border = {});
+	YandereObject(YandereInitializer*, unsigned modelID, unsigned textureID, YanTransforms transform, YanColor color = {}, YanBorder border = {});
 
 	void set_position(YanPosition position);
 	void translate(YanPosition positionDelta);
@@ -404,8 +429,8 @@ protected:
 	YandereInitializer* _yanInitializer;
 	
 private:
-    std::string _usedModel;
-    std::string _usedTexture;
+    unsigned _modelID;
+    unsigned _textureID;
 
 	ObjectData _objData;
 	ObjectData _scaledObjData;
@@ -423,7 +448,7 @@ private:
 public:
 	YandereObjects();
 
-	YandereObjects(YandereInitializer*, std::string usedModel, std::string usedTexture, std::vector<YanTransforms> transforms, size_t size, std::vector<YanColor> colors = {{}}, YanBorder border = {});
+	YandereObjects(YandereInitializer*, unsigned modelID, unsigned textureID, std::vector<YanTransforms> transforms, size_t size, std::vector<YanColor> colors = {{}}, YanBorder border = {});
 
 	bool empty();
 
@@ -461,8 +486,8 @@ protected:
 	bool _singleColor;
 	
 private:
-    std::string _usedModel;
-    std::string _usedTexture;
+    unsigned _modelID;
+    unsigned _textureID;
 
 	std::vector<ObjectData> _instancedData;
 	std::vector<ObjectData> _scaledInstancedData;
@@ -510,7 +535,7 @@ class YandereText
 {
 public:
 	YandereText();
-	YandereText(YandereInitializer* yanInitializer, int size, std::vector<LetterData> letters, std::string textureName);
+	YandereText(YandereInitializer* yanInitializer, unsigned modelOffset, int size, std::vector<LetterData> letters, unsigned textureID);
 	
 	void draw_update();
 	
@@ -529,12 +554,14 @@ private:
 
 	std::vector<LetterData> _letters;
 
-	std::string _textureName;
+	unsigned _textureID;
 	
 	float x = 0;
 	float y = 0;
 	
 	int _size = 0;
+	
+	unsigned _modelOffset = 0;
 	
 	float _textWidth = 0;
 	float _textHeight = 0;

@@ -374,7 +374,7 @@ YandereModel::YandereModel(std::string stringModelPath)
 	}
 }
 
-void YandereModel::set_current(unsigned vertexArrayBuffer, unsigned arrayBuffer, unsigned elementArrayBuffer)
+void YandereModel::set_current(unsigned vertexArrayBuffer, unsigned arrayBuffer, unsigned elementArrayBuffer) const
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vertexArrayBuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
@@ -561,16 +561,6 @@ bool YandereModel::parseModel(std::string modelPath, std::string fileFormat)
 	}
 }
 
-std::vector<float>* YandereModel::getVerticesPtr()
-{
-	return &vertices;
-}
-
-std::vector<unsigned>* YandereModel::getIndicesPtr()
-{
-	return &indices;
-}
-
 //------------------------------------------------------------------------------------------------------------------
 YandereTexture::YandereTexture(std::string stringImagePath) : _empty(false)
 {
@@ -604,7 +594,7 @@ YandereTexture::YandereTexture(YandereImage image) : _image(image), _empty(false
 	_image.flip();
 }
 
-void YandereTexture::set_current(unsigned textureBuffer)
+void YandereTexture::set_current(unsigned textureBuffer) const
 {
 	assert(!_empty);
 
@@ -631,12 +621,12 @@ void YandereTexture::set_current(unsigned textureBuffer)
 	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-int YandereTexture::width()
+int YandereTexture::width() const
 {
 	return _image.width;
 }
 
-int YandereTexture::height()
+int YandereTexture::height() const
 {
 	return _image.height;
 }
@@ -674,7 +664,7 @@ unsigned YandereTexture::set_texture_type(uint8_t bpp)
 
 //----------------------------------------------------------------------------------------------------------------
 
-YandereShader::YandereShader(std::string shaderText) : _shaderText(shaderText)
+YandereShader::YandereShader(std::string shaderText, ShaderType shaderType) : _shaderText(shaderText), _shaderType(shaderType)
 {
 }
 
@@ -683,6 +673,10 @@ std::string& YandereShader::text()
 	return _shaderText;
 }
 
+ShaderType YandereShader::shader_type()
+{
+	return _shaderType;
+}
 
 
 YandereShaderProgram::YandereShaderProgram(unsigned programID) : _programID(programID)
@@ -793,7 +787,7 @@ unsigned YandereShaderProgram::projection_mat() const
 YandereInitializer::YandereInitializer()
 {
 	load_default_models();
-	_textureMap["!dSOLID"] = YandereTexture("!dSOLID");
+	_textureVec.emplace_back(YandereTexture("!dSOLID"));
 }
 
 YandereInitializer::~YandereInitializer()
@@ -812,11 +806,11 @@ YandereInitializer::~YandereInitializer()
 		{
 			glDeleteVertexArrays(1, &_vertexArrayObjectID);
 		}
-		for(const auto& shader : _shaderProgramMap)
+		for(const auto& program : _shaderProgramVec)
 		{
-			if(glIsProgram(shader.second.program()))
+			if(glIsProgram(program.program()))
 			{
-				glDeleteProgram(shader.second.program());
+				glDeleteProgram(program.program());
 			}
 		}
 		if(glIsBuffer(_textureBufferObjectID))
@@ -837,29 +831,156 @@ YandereInitializer::~YandereInitializer()
 	}
 }
 
-void YandereInitializer::set_draw_model(std::string modelName)
+void YandereInitializer::set_draw_model(const unsigned modelID)
 {
-	if(modelName!=_currentModelUsed)
+	assert(_modelVec.size()>modelID);
+		
+	YandereModel& currModel = _modelVec[modelID];
+	_currentModelSize = currModel.indices.size();
+	currModel.set_current(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
+}
+
+void YandereInitializer::set_draw_texture(const unsigned textureID)
+{
+	assert(_textureVec.size()>textureID);
+		
+	_textureVec[textureID].set_current(_textureBufferObjectID);
+}
+
+unsigned YandereInitializer::add_model(YandereModel& model)
+{
+	YandereModel modelCopy = model;
+	return add_model(std::move(modelCopy));
+}
+
+unsigned YandereInitializer::add_model(YandereModel&& model)
+{
+	if(_emptyModels.empty())
 	{
-		assert(_modelMap.count(modelName)!=0);
+		_modelVec.reserve(1);
+		_modelVec.emplace_back(model);
 		
-		_currentModelUsed = modelName;
+		return _modelVec.size()-1;
+	} else
+	{
+		auto currIter = _emptyModels.begin();
 		
-		YandereModel& currModel = _modelMap.at(modelName);
-		_currentModelSize = currModel.getIndicesPtr()->size();
-		currModel.set_current(_vertexBufferObjectID, _vertexArrayObjectID, _elementObjectBufferID);
+		unsigned insertedId = *currIter;
+		_modelVec[insertedId] = model;
+	
+		//doesnt keep order but way faster than vector::erase
+		auto newVecEnd = _emptyModels.end()-1;
+		if(newVecEnd!=currIter)
+			*currIter = *newVecEnd;
+		_emptyModels.pop_back();
+		
+		return insertedId;
 	}
 }
 
-void YandereInitializer::set_draw_texture(std::string textureName)
+void YandereInitializer::remove_model(const unsigned modelID)
 {
-	if(textureName!=_currentTextureUsed)
+	_emptyModels.push_back(modelID);
+}
+
+void YandereInitializer::set_model(const unsigned modelID, YandereModel& model)
+{
+	YandereModel modelCopy = model;
+	return set_model(modelID, std::move(modelCopy));
+}
+
+void YandereInitializer::set_model(const unsigned modelID, YandereModel&& model)
+{
+	_modelVec[modelID] = model;
+}
+
+const YandereModel YandereInitializer::model(const unsigned modelID)
+{
+	return _modelVec[modelID];
+}
+
+
+unsigned YandereInitializer::add_texture(YandereTexture& texture)
+{
+	YandereTexture textureCopy = texture;
+	return add_texture(std::move(textureCopy));
+}
+
+unsigned YandereInitializer::add_texture(YandereTexture&& texture)
+{
+	if(_emptyTextures.empty())
 	{
-		assert(_textureMap.count(textureName)!=0);
+		_textureVec.reserve(1);
+		_textureVec.emplace_back(texture);
 		
-		_textureMap.at(textureName).set_current(_textureBufferObjectID);
+		return _textureVec.size()-1;
+	} else
+	{
+		auto currIter = _emptyTextures.begin();
+		
+		unsigned insertedId = *currIter;
+		_textureVec[insertedId] = texture;
+	
+		//doesnt keep order but way faster than vector::erase
+		auto newVecEnd = _emptyTextures.end()-1;
+		if(newVecEnd!=currIter)
+			*currIter = *newVecEnd;
+		_emptyTextures.pop_back();
+		
+		return insertedId;
 	}
 }
+
+void YandereInitializer::remove_texture(const unsigned textureID)
+{
+	_emptyTextures.push_back(textureID);
+}
+
+void YandereInitializer::set_texture(const unsigned textureID, YandereTexture& texture)
+{
+	YandereTexture textureCopy = texture;
+	return set_texture(textureID, std::move(textureCopy));
+}
+
+void YandereInitializer::set_texture(const unsigned textureID, YandereTexture&& texture)
+{
+	_textureVec[textureID] = texture;
+}
+
+const YandereTexture YandereInitializer::texture(const unsigned textureID)
+{
+	return _textureVec[textureID];
+}
+
+
+unsigned YandereInitializer::add_shader(YandereShader& shader)
+{
+	YandereShader shaderCopy = shader;
+	return add_shader(std::move(shaderCopy));
+}
+
+unsigned YandereInitializer::add_shader(YandereShader&& shader)
+{
+	_shaderVec.reserve(1);
+	_shaderVec.emplace_back(shader);
+	
+	return _shaderVec.size()-1;
+}
+
+unsigned YandereInitializer::add_shader_program(YandereShaderProgram& program)
+{
+	YandereShaderProgram programCopy = program;
+	return add_shader_program(std::move(programCopy));
+}
+
+unsigned YandereInitializer::add_shader_program(YandereShaderProgram&& program)
+{
+	_shaderProgramVec.reserve(1);
+	_shaderProgramVec.emplace_back(program);
+	
+	return _shaderProgramVec.size()-1;
+}
+
 
 void YandereInitializer::set_draw_camera(YandereCamera* camera)
 {
@@ -917,7 +1038,7 @@ void YandereInitializer::config_GL_buffers(bool stencil, bool antialiasing, bool
 
 	glGenBuffers(1, &_textureBufferObjectID);
 
-	set_draw_model("!dTRIANGLE");
+	set_draw_model(DefaultModel::triangle);
 }
 
 void YandereInitializer::update_matrix_pointers(YandereCamera* camera)
@@ -926,7 +1047,7 @@ void YandereInitializer::update_matrix_pointers(YandereCamera* camera)
 	_projectionMatrix = camera->projection_matrix_ptr();
 }
 
-void YandereInitializer::load_shaders_from(std::string shadersFolder)
+std::map<std::string, unsigned> YandereInitializer::load_shaders_from(std::string shadersFolder)
 {
 	std::filesystem::path shadersPath(shadersFolder);
 
@@ -935,6 +1056,7 @@ void YandereInitializer::load_shaders_from(std::string shadersFolder)
 		throw std::runtime_error("shader folder not found");
 	}
 
+	std::map<std::string, unsigned> shaderIds;
 	for(const auto& file : std::filesystem::directory_iterator(shadersPath))
 	{
 		std::ifstream shaderSrcFile(file.path().string());
@@ -952,11 +1074,16 @@ void YandereInitializer::load_shaders_from(std::string shadersFolder)
 			std::cout << "error reading a shader file" << std::endl;
 		}
 
-		_shaderMap[shaderFilename] = YandereShader(shaderStr);
+		std::string currExtension = file.path().extension().string();
+
+		ShaderType currShaderType = currExtension==".fragment" ? ShaderType::fragment : (currExtension==".vertex" ? ShaderType::vertex : ShaderType::geometry);
+		shaderIds[shaderFilename] = add_shader(YandereShader(shaderStr, currShaderType));
 	}
+	
+	return shaderIds;
 }
 
-void YandereInitializer::load_models_from(std::string modelsFolder)
+std::map<std::string, unsigned> YandereInitializer::load_models_from(std::string modelsFolder)
 {
 	std::filesystem::path modelsPath(modelsFolder);
 
@@ -965,25 +1092,29 @@ void YandereInitializer::load_models_from(std::string modelsFolder)
 		throw std::runtime_error("models folder not found");
 	}
 
+	std::map<std::string, unsigned> modelIds;
 	for(const auto& file : std::filesystem::directory_iterator(modelsPath))
 	{
 		std::string modelFilename = file.path().filename().stem().string();
 
-		_modelMap[modelFilename] = std::move(YandereModel(file.path().string()));
+		modelIds[modelFilename] = add_model(YandereModel(file.path().string()));
 	}
+	
+	return modelIds;
 }
 
 void YandereInitializer::load_default_models()
 {
-	std::string dName;
-	std::vector<std::string> defaultNames = {"!dCIRCLE", "!dSQUARE", "!dTRIANGLE", "!dPYRAMID", "!dCUBE"};
-	for(const auto& dName : defaultNames)
+	std::vector<std::string> defaultNames = {"!dSQUARE", "!dCIRCLE", "!dTRIANGLE", "!dCUBE", "!dPYRAMID"};
+	
+	_modelVec.reserve(DefaultModel::LAST);
+	for(int i = 0; i < DefaultModel::LAST; ++i)
 	{
-		_modelMap[dName] = std::move(YandereModel(dName));
+		_modelVec.emplace_back(YandereModel(defaultNames[i]));
 	}
 }
 
-void YandereInitializer::load_textures_from(std::string texturesFolder)
+std::map<std::string, unsigned> YandereInitializer::load_textures_from(std::string texturesFolder)
 {
 	std::filesystem::path texturesPath(texturesFolder);
 
@@ -992,12 +1123,15 @@ void YandereInitializer::load_textures_from(std::string texturesFolder)
 		throw std::runtime_error("textures folder not found");
 	}
 
+	std::map<std::string, unsigned> textureIds;
 	for(const auto& file : std::filesystem::directory_iterator(texturesPath))
 	{
 		std::string textureFilename = file.path().filename().stem().string();
 
-		_textureMap[textureFilename] = std::move(YandereTexture(file.path().string()));
+		textureIds[textureFilename] = add_texture(YandereTexture(file.path().string()));
 	}
+	
+	return textureIds;
 }
 
 void YandereInitializer::load_font(std::string fPath)
@@ -1028,9 +1162,9 @@ void YandereInitializer::load_font(std::string fPath)
 	_fontsMap[fontPath.filename().stem().string()] = std::move(face);
 }
 
-unsigned YandereInitializer::create_shader_program(std::vector<std::string> shaderIDArr)
+unsigned YandereInitializer::create_shader_program(std::vector<unsigned> shaderIDVec)
 {
-	assert(!_shaderMap.empty());
+	assert(!_shaderVec.empty());
 
 	int success;
 
@@ -1038,25 +1172,20 @@ unsigned YandereInitializer::create_shader_program(std::vector<std::string> shad
 	const char* fragmentShaderSrc = nullptr;
 	const char* geometryShaderSrc = nullptr;
 
-	for(const auto& shader : shaderIDArr)
+	for(auto& shaderID : shaderIDVec)
 	{
-		std::string currExtension = std::filesystem::path(shader).extension().string();
-	
-		if(_shaderMap.count(shader)==0)
+		if(_shaderVec.size()<=shaderID)
 			throw std::runtime_error("shader file doesnt exist");
 	
-		if(currExtension==".fragment")
+		if(_shaderVec[shaderID].shader_type()==ShaderType::fragment)
 		{
-			fragmentShaderSrc = _shaderMap[shader].text().c_str();
-		} else if(currExtension==".vertex")
+			fragmentShaderSrc = _shaderVec[shaderID].text().c_str();
+		} else if(_shaderVec[shaderID].shader_type()==ShaderType::vertex)
 		{
-			vertexShaderSrc = _shaderMap[shader].text().c_str();
-		} else if(currExtension==".geometry")
-		{
-			geometryShaderSrc = _shaderMap[shader].text().c_str();
+			vertexShaderSrc = _shaderVec[shaderID].text().c_str();
 		} else
 		{
-			throw std::runtime_error("shader file isnt a .fragment, .vertex or .geometry");
+			geometryShaderSrc = _shaderVec[shaderID].text().c_str();
 		}
 	}
 
@@ -1107,33 +1236,31 @@ unsigned YandereInitializer::create_shader_program(std::vector<std::string> shad
 	glGetProgramiv(currProgram, GL_LINK_STATUS, &success);
 	if(!success) output_error(currProgram, true);
 	
-	_shaderProgramMap[_lastProgramID] = YandereShaderProgram(currProgram);
-
 	if(vertexShaderSrc!=nullptr) glDeleteShader(vertexShaderID);
 	if(fragmentShaderSrc!=nullptr) glDeleteShader(fragmentShaderID);
 	if(geometryShaderSrc!=nullptr) glDeleteShader(geometryShaderID);
 	
-	return _lastProgramID++;
+	return add_shader_program(YandereShaderProgram(currProgram));
 }
 
-YandereShaderProgram* YandereInitializer::shader_program_ptr(unsigned programID)
+YandereShaderProgram* YandereInitializer::shader_program_ptr(const unsigned programID)
 {
-	return &_shaderProgramMap[programID];
+	return &_shaderProgramVec[programID];
 }
 
 
-void YandereInitializer::set_shader_program(unsigned programID)
+void YandereInitializer::set_shader_program(const unsigned programID)
 {
-	assert(_shaderProgramMap.count(programID)!=0);
+	assert(_shaderProgramVec.size()>programID);
 	
-	glUseProgram(_shaderProgramMap[programID].program());
+	glUseProgram(_shaderProgramVec[programID].program());
 	
 	_storedShaderID = programID;
 }
 
 void YandereInitializer::apply_uniforms()
 {
-	YandereShaderProgram* programPtr = &_shaderProgramMap[_storedShaderID];
+	YandereShaderProgram* programPtr = &_shaderProgramVec[_storedShaderID];
 
 	glUniformMatrix4fv(programPtr->view_mat(), 1, GL_FALSE, glm::value_ptr(*_viewMatrix));
 	glUniformMatrix4fv(programPtr->projection_mat(), 1, GL_FALSE, glm::value_ptr(*_projectionMatrix));
@@ -1202,6 +1329,8 @@ YandereText YandereInitializer::create_text(std::string text, std::string fontNa
 	
 	std::vector<uint8_t> texData(width*height, 0);
 	
+	unsigned charOffset = _modelVec.size();
+	_modelVec.reserve(loadChars);
 	for(int c = 0; c < loadChars; ++c)
 	{
 		int xStart = maxWidth*c;
@@ -1215,7 +1344,6 @@ YandereText YandereInitializer::create_text(std::string text, std::string fontNa
 			texData[xStart+letterX+letterY*width] = letterPixels[c][l];
 		}
 		
-		std::string letterModelName = "!fg"+std::to_string(c);
 		YandereModel letterModel;
 		
 		float xMin = xStart/static_cast<float>(width);
@@ -1233,12 +1361,10 @@ YandereText YandereInitializer::create_text(std::string text, std::string fontNa
 		0, 2, 1,
 		2, 0, 3};
 		
-		_modelMap[letterModelName] = letterModel;
+		_modelVec.emplace_back(std::move(letterModel));
 		
 		letters[c].originY *= 2;
 	}
-
-	std::string textureName = "!f" + fontName;
 
 	YandereImage img;
 	img.width = width;
@@ -1248,9 +1374,9 @@ YandereText YandereInitializer::create_text(std::string text, std::string fontNa
 	
 	YandereTexture fontTexture = YandereTexture(img);
 	
-	_textureMap[textureName] = std::move(fontTexture);
+	unsigned textureID = add_texture(std::move(fontTexture));
 	
-	YandereText outText = YandereText(this, size, letters, textureName);
+	YandereText outText = YandereText(this, charOffset, size, letters, textureID);
 	outText.set_position(x, y);
 	outText.change_text(text);
 
@@ -1311,12 +1437,12 @@ void GLAPIENTRY YandereInitializer::debug_callback(GLenum source, GLenum type, G
 
 //---------------------------------------------------------------------------------------------------------------
 
-YandereObject::YandereObject() : _usedModel(""), _usedTexture("")
+YandereObject::YandereObject() : _modelID(-1), _textureID(-1)
 {
 }
 
-YandereObject::YandereObject(YandereInitializer* yanIniter, std::string usedModel, std::string usedTexture, YanTransforms transform, YanColor color, YanBorder border)
- : _transform(transform), _color(color), _border(border), _yanInitializer(yanIniter), _usedModel(usedModel), _usedTexture(usedTexture)
+YandereObject::YandereObject(YandereInitializer* yanIniter, unsigned modelID, unsigned textureID, YanTransforms transform, YanColor color, YanBorder border)
+ : _transform(transform), _color(color), _border(border), _yanInitializer(yanIniter), _modelID(modelID), _textureID(textureID)
 {
 	assert(_yanInitializer->glew_initialized());
 	yGL_setup(border.enabled);
@@ -1393,9 +1519,11 @@ void YandereObject::set_border(YanBorder border)
 
 void YandereObject::draw_update()
 {
-	assert(_usedModel!="" && _usedTexture!="");
-	_yanInitializer->set_draw_model(_usedModel);
-	_yanInitializer->set_draw_texture(_usedTexture);
+	assert(_modelID!=-1);
+	assert(_textureID!=-1);
+	
+	_yanInitializer->set_draw_model(_modelID);
+	_yanInitializer->set_draw_texture(_textureID);
 	
 	if(_yanInitializer->_currentModelSize==0)
 		return;
@@ -1514,15 +1642,15 @@ YandereObjects::YandereObjects() : _transformsSize(0)
 {
 }
 
-YandereObjects::YandereObjects(YandereInitializer* yanIniter, std::string usedModel, std::string usedTexture, std::vector<YanTransforms> transformsInstanced, size_t tsize, std::vector<YanColor> colors, YanBorder border)
- : _transforms(transformsInstanced), _transformsSize(tsize), _colors(colors), _border(border), _yanInitializer(yanIniter), _usedModel(usedModel), _usedTexture(usedTexture)
+YandereObjects::YandereObjects(YandereInitializer* yanIniter, unsigned modelID, unsigned textureID, std::vector<YanTransforms> transformsInstanced, size_t tsize, std::vector<YanColor> colors, YanBorder border)
+ : _transforms(transformsInstanced), _transformsSize(tsize), _colors(colors), _border(border), _yanInitializer(yanIniter), _modelID(modelID), _textureID(textureID)
 {
 	assert(_yanInitializer->glew_initialized());
 	yGL_setup(border.enabled);
 
 	_singleColor=!(colors.size()>1);
 
-	if(transformsInstanced.size()!=0)
+	if(!transformsInstanced.empty())
 	{
 		mats_update();
 	}
@@ -1654,10 +1782,13 @@ void YandereObjects::set_border(YanBorder border)
 
 void YandereObjects::draw_update()
 {
+	assert(_modelID!=-1);
+	assert(_textureID!=-1);
+
 	assert(!empty());
 
-	_yanInitializer->set_draw_model(_usedModel);
-	_yanInitializer->set_draw_texture(_usedTexture);
+	_yanInitializer->set_draw_model(_modelID);
+	_yanInitializer->set_draw_texture(_textureID);
 	
 	if(_yanInitializer->_currentModelSize==0)
 		return;
@@ -1785,7 +1916,7 @@ void YandereObjects::mats_update()
 
 //-------------------------------------------------------------------------------------------------------------------
 YandereLine::YandereLine(YandereInitializer* yanIniter, YanPosition point0, YanPosition point1, float width, YanColor color, YanBorder border)
- : _point0(point0), _point1(point1), _width(width), YandereObject(yanIniter, "!dSQUARE", "!dSOLID", {}, color, border)
+ : _point0(point0), _point1(point1), _width(width), YandereObject(yanIniter, DefaultModel::square, DefaultTexture::solid, {}, color, border)
 {
 	calculate_variables();
 }
@@ -1836,7 +1967,7 @@ void YandereLine::calculate_variables()
 
 
 YandereLines::YandereLines(YandereInitializer* yanIniter, std::vector<std::array<YanPosition, 2>> points, size_t tsize, std::vector<float> widths, std::vector<YanColor> colors, YanBorder border)
- : _points(points), _widths(widths), YandereObjects(yanIniter, "!dSQUARE", "!dSOLID", {}, tsize, colors, border)
+ : _points(points), _widths(widths), YandereObjects(yanIniter, DefaultModel::square, DefaultTexture::solid, {}, tsize, colors, border)
 {
 	calculate_variables();
 }
@@ -1906,8 +2037,8 @@ YandereText::YandereText()
 {
 }
 
-YandereText::YandereText(YandereInitializer* yanInitializer, int size, std::vector<LetterData> letters, std::string textureName) : 
-_yanInitializer(yanInitializer), _size(size), _letters(letters), _textureName(textureName)
+YandereText::YandereText(YandereInitializer* yanInitializer, unsigned modelOffset, int size, std::vector<LetterData> letters, unsigned textureID) : 
+_yanInitializer(yanInitializer), _modelOffset(modelOffset), _size(size), _letters(letters), _textureID(textureID)
 {
 }
 
@@ -1961,9 +2092,7 @@ void YandereText::change_text(std::string newText)
 			_textWidth -= letter.hDist/64.0f;
 		}
 		
-		std::string letterMesh = "!fg"+std::to_string(letterIndex);
-		
-		YandereObject letterObj = YandereObject(_yanInitializer, letterMesh, _textureName, letterTransform);
+		YandereObject letterObj = YandereObject(_yanInitializer, _modelOffset+letterIndex, _textureID, letterTransform);
 		
 		_letterObjs.emplace_back(std::move(letterObj));
 	}
