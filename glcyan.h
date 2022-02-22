@@ -407,7 +407,7 @@ public:
 	void set_rotation(float rotation);
 	void rotate(float rotation);
 
-	void set_rotationAxis(YanPosition axis);
+	void set_rotation_axis(YanPosition axis);
 
 	void set_color(YanColor color);
 	void set_border(YanBorder border);
@@ -461,7 +461,7 @@ public:
 	void set_rotations(std::vector<float> rotations);
 	void rotate(std::vector<float> rotations);
 
-	void set_rotationAxes(std::vector<YanPosition> axes);
+	void set_rotation_axes(std::vector<YanPosition> axes);
 
 	void set_colors(std::vector<YanColor> colors);
 	void set_border(YanBorder border);

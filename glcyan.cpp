@@ -1498,7 +1498,7 @@ void YandereObject::rotate(float rotationDelta)
 	mats_update();
 }
 
-void YandereObject::set_rotationAxis(YanPosition axis)
+void YandereObject::set_rotation_axis(YanPosition axis)
 {
 	_transform.axis = axis;
 
@@ -1747,7 +1747,7 @@ void YandereObjects::rotate(std::vector<float> rotationDeltas)
 	mats_update();
 }
 
-void YandereObjects::set_rotationAxes(std::vector<YanPosition> axes)
+void YandereObjects::set_rotation_axes(std::vector<YanPosition> axes)
 {
 	assert(axes.size()==_transformsSize);
 	for(int i = 0; i < _transformsSize; i++)
