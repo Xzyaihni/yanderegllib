@@ -1,10 +1,6 @@
 #ifndef GLCYAN_H
 #define GLCYAN_H
 
-#include <GL/glew.h>
-#include <GL/glu.h>
-#include <GL/gl.h>
-
 #include <glm/glm.hpp>
 
 #include <vector>
@@ -14,557 +10,412 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include "yanconv.h"
+#include "glcore.h"
 
-struct YanPosition
+namespace yanderegl
 {
-	float x = 0;
-	float y = 0;
-	float z = 0;
-};
+	enum default_texture {solid = 0, TEXTURE_LAST};
+	enum default_model {square = 0, circle, triangle, cube, pyramid, MODEL_LAST};
 
-struct YanScale
-{
-	float x = 1;
-	float y = 1;
-	float z = 1;
-};
-
-struct YanTransforms
-{
-	YanPosition position = {};
-
-	YanScale scale = {};
-
-	float rotation = 0;
-
-	YanPosition axis = {0, 0, 1};
-};
-
-struct YanColor
-{
-	float r = 1;
-	float g = 1;
-	float b = 1;
-	float a = 1;
-};
-
-struct YanBorder
-{
-	bool enabled = false;
-	YanColor color = {};
-	float width = 1.1f;
-};
-
-struct YVec2
-{
-	float x = 0;
-	float y = 0;
-};
-
-struct YVec3
-{
-	float x = 0;
-	float y = 0;
-	float z = 0;
-};
-
-struct YVec4
-{
-	float x = 0;
-	float y = 0;
-	float z = 0;
-	float w = 0;
-};
-
-struct LetterData
-{
-	float width;
-	float height;
-	float originX;
-	float originY;
-	float hDist;
-};
-
-enum DefaultTexture {solid = 0};
-enum DefaultModel {square = 0, circle, triangle, cube, pyramid, LAST};
-
-class YandereCamera
-{
-private:
-	struct Plane
+	class yandere_camera
 	{
-		float a;
-		float b;
-		float c;
-		float d;
-	};
+	private:
+		struct plane
+		{
+			float a;
+			float b;
+			float c;
+			float d;
+		};
+			
+		enum side
+		{
+			left = 0,
+			right,
+			down,
+			up,
+			back,
+			forward
+		};
+
+	public:
+		yandere_camera() {};
+		yandere_camera(const yan_position position, const yan_position look_position);
+
+		void create_projection(const std::array<float, 4> ortho_box, const std::array<float, 2> planes);
+		void create_projection(const float fov, const float aspect, const std::array<float, 2> planes);
+
+		void set_position(const yan_position position);
+		void set_position_x(const float x);
+		void set_position_y(const float y);
+		void set_position_z(const float z);
+
+		void set_rotation(const float yaw, const float pitch);
+		void set_direction(const std::array<float, 3> direction);
+		void look_at(const std::array<float, 3> look_position);
+
+		void translate_position(const yan_position delta);
+
+		yan_position position() const noexcept;
+
+		//returns -1 if the point is in the negative direction, 1 if positive, 0 if inside the camera planes
+		int x_point_side(const yan_position point) const noexcept;
+		int y_point_side(const yan_position point) const noexcept;
+		int z_point_side(const yan_position point) const noexcept;
 		
-	enum Side
-	{
-		left = 0,
-		right,
-		down,
-		up,
-		back,
-		forward
+		//i could check for cuboid but im too lazy taking in 8 coordinate points
+		bool cube_in_frustum(const yan_position middle, const float size) const noexcept;
+
+		const glm::mat4* proj_view_matrix_ptr() const noexcept;
+		const glm::mat4* view_matrix_ptr() const noexcept;
+		const glm::mat4* projection_matrix_ptr() const noexcept;
+		
+		float clip_far() const noexcept;
+		float clip_close() const noexcept;
+		
+	private:
+		void calculate_view();
+		
+		void calculate_planes();
+
+		glm::vec3 _camera_position;
+		glm::vec3 _camera_direction;
+		glm::vec3 _camera_up;
+		glm::vec3 _camera_right;
+		glm::vec3 _camera_forward;
+
+		glm::mat4 _view_matrix;
+		glm::mat4 _projection_matrix;
+		
+		glm::mat4 _proj_view_matrix;
+		
+		std::array<plane, 6> _planes;
+		
+		bool _projection_exists = false;
+		bool _view_exists = false;
+		
+		float _clip_far;
+		float _clip_close;
 	};
 
-public:
-	YandereCamera() {};
-	YandereCamera(YanPosition position, YanPosition lookPosition);
-
-	void create_projection(std::array<float, 4> orthoBox, std::array<float, 2> planes);
-	void create_projection(float fov, float aspect, std::array<float, 2> planes);
-
-	void set_position(YanPosition);
-	void set_position_x(float);
-	void set_position_y(float);
-	void set_position_z(float);
-
-	void set_rotation(float, float);
-	void set_direction(std::array<float, 3>);
-	void look_at(std::array<float, 3>);
-
-	void translate_position(YanPosition);
-
-	YanPosition position();
-
-	//returns -1 if the point is in the negative direction, 1 if positive, 0 if inside the camera planes
-	int x_point_side(YanPosition point);
-	int y_point_side(YanPosition point);
-	int z_point_side(YanPosition point);
+	class yandere_controller;
 	
-	//i could check for cuboid but im too lazy taking in 8 coordinate points
-	bool cube_in_frustum(YanPosition middle, float size);
-
-	glm::mat4* proj_view_matrix_ptr();
-	glm::mat4* view_matrix_ptr();
-	glm::mat4* projection_matrix_ptr();
-
-	float clipFar;
-	float clipClose;
-	
-private:
-	void calculate_view();
-	
-	void calculate_planes();
-
-	glm::vec3 _cameraPosition;
-	glm::vec3 _cameraDirection;
-	glm::vec3 _cameraUp;
-	glm::vec3 _cameraRight;
-	glm::vec3 _cameraForward;
-
-	glm::mat4 _viewMatrix;
-	glm::mat4 _projectionMatrix;
-	
-	glm::mat4 _projViewMatrix;
-	
-	std::array<Plane, 6> _planesArr;
-	
-	bool _projectionMatrixExists = false;
-	bool _viewMatrixExists = false;
-};
-
-class YandereModel
-{
-public:
-    YandereModel() {};
-    YandereModel(std::string);
-
-    void set_current(unsigned, unsigned, unsigned) const;
-    
-    std::vector<float> vertices;
-	std::vector<unsigned> indices;
-	
-private:
-    bool parseModel(std::string, std::string);
-};
-
-class YandereTexture
-{
-public:
-    YandereTexture() {};
-    YandereTexture(std::string stringImagePath);
-    YandereTexture(YandereImage image);
-
-    void set_current(unsigned) const;
-    
-    int width() const;
-    int height() const;
-    
-private:
-    bool parse_image(std::string, std::string);
-
-	unsigned set_texture_type(uint8_t bpp);
-
-    unsigned _textureType;
-
-    YandereImage _image;
-
-    bool _empty = true;
-};
-
-
-enum class ShaderType {fragment, vertex, geometry};
-
-class YandereShader
-{
-public:
-	YandereShader() {};
-	YandereShader(std::string shaderText, ShaderType shaderType);
-	
-	std::string& text();
-
-	ShaderType shader_type();
-
-private:
-	std::string _shaderText;
-	
-	ShaderType _shaderType;
-};
-
-class YandereShaderProgram
-{
-private:
-	struct Prop
+	class yandere_shader_program
 	{
-		int length;
-		unsigned location;
-	};
+	public:
+		yandere_shader_program() {};
+		yandere_shader_program(const yandere_controller* ctl, std::vector<core::shader_program>* shader_programs_ptr, const unsigned id);
+		yandere_shader_program(const yandere_controller* ctl, core::shader_program* shader_program_ptr);
+		
+		void set_current() const;
+		
+		unsigned add_num(const std::string name);
+		unsigned add_vec2(const std::string name);
+		unsigned add_vec3(const std::string name);
+		unsigned add_vec4(const std::string name);
 
-public:
-	YandereShaderProgram() {};
-	YandereShaderProgram(unsigned programID);
-	
-	unsigned add_num(std::string name);
-	unsigned add_vec2(std::string name);
-	unsigned add_vec3(std::string name);
-	unsigned add_vec4(std::string name);
-
-	template<typename T>
-	void set_prop(unsigned propID, T val)
-	{
-		if constexpr(std::is_same<T, YVec4>::value)
+		template<typename T>
+		void set_prop(unsigned prop_id, const T val)
 		{
-			_shaderPropsVec4[propID/4] = val;
-		} else if constexpr(std::is_same<T, YVec3>::value)
-		{
-			_shaderPropsVec3[propID/4] = val;
-		} else if constexpr(std::is_same<T, YVec2>::value)
-		{
-			_shaderPropsVec2[propID/4] = val;
-		} else
-		{
-			_shaderProps[propID/4] = val;
+			c_shader_program()->set_prop(prop_id, val);
 		}
-	}
-
-	void apply_uniforms();
-
-	unsigned program() const;
-
-	unsigned view_mat() const;
-	unsigned projection_mat() const;
-
-private:
-	template<typename T, typename V>
-	unsigned add_any(T& type, V vType, int index, std::string name);
-
-	void matrix_setup();
-
-	unsigned _programID;
+		
+	private:
+		core::shader_program* c_shader_program() const noexcept;
+		
+		const yandere_controller* _ctl;
 	
-	unsigned _viewMat;
-	unsigned _projectionMat;
+		unsigned _id = -1;
+		core::shader_program* _shader_program_ptr = nullptr;
+		std::vector<core::shader_program>* _shader_programs_ptr;
+	};
 
-	std::vector<Prop> _propsVec;
-	std::vector<float> _shaderProps;
-	std::vector<YVec2> _shaderPropsVec2;
-	std::vector<YVec3> _shaderPropsVec3;
-	std::vector<YVec4> _shaderPropsVec4;
-};
 
-class YandereText;
-
-class YandereInitializer
-{
-public:
-	YandereInitializer();
-	~YandereInitializer();
-
-	void do_glew_init(bool stencil = true, bool antialiasing = true, bool culling = true);
-	bool glew_initialized();
-
-	void set_draw_model(const unsigned modelID);
-	void set_draw_texture(const unsigned textureID);
-	void set_shader_program(const unsigned programID);
+	class yandere_model
+	{
+	public:
+		yandere_model() {};
+		yandere_model(const std::vector<core::model>* models_ptr, const unsigned id);
+		yandere_model(const core::model* model_ptr);
+		
+		bool empty() const;
+		
+		void draw(const core::object_data* obj_data) const;
+		
+	private:
+		const core::model* c_model_ptr() const noexcept;
 	
-	unsigned add_model(YandereModel& model);
-	unsigned add_model(YandereModel&& model);
-	void remove_model(const unsigned modelID);
-	void set_model(const unsigned modelID, YandereModel& model);
-	void set_model(const unsigned modelID, YandereModel&& model);
-	const YandereModel model(const unsigned modelID);
+		unsigned _id = -1;
+		const core::model* _model_ptr = nullptr;
+		const std::vector<core::model>* _models_ptr;
+	};
 	
-	unsigned add_texture(YandereTexture& texture);
-	unsigned add_texture(YandereTexture&& texture);
-	void remove_texture(const unsigned textureID);
-	void set_texture(const unsigned textureID, YandereTexture& texture);
-	void set_texture(const unsigned textureID, YandereTexture&& texture);
-	const YandereTexture texture(const unsigned textureID);
+	class yandere_texture
+	{
+	public:
+		yandere_texture() {};
+		yandere_texture(const std::vector<core::texture>* textures_ptr, const unsigned id);
+		yandere_texture(const core::texture* texture_ptr);
+		
+		void set_current() const;
+		
+		int width() const;
+		int height() const;
+		
+	private:
+		const core::texture* c_texture_ptr() const noexcept;
 	
-	void set_draw_camera(YandereCamera* camera);
+		unsigned _id = -1;
+		const core::texture* _texture_ptr = nullptr;
+		const std::vector<core::texture>* _textures_ptr;
+	};
 
-	std::map<std::string, unsigned> load_shaders_from(std::string shadersFolder);
-	std::map<std::string, unsigned> load_models_from(std::string modelsFolder);
-	std::map<std::string, unsigned> load_textures_from(std::string texturesFolder);
-
-	void load_font(std::string fPath);
-
-	unsigned create_shader_program(std::vector<unsigned> shaderIDVec);
-	YandereShaderProgram* shader_program_ptr(const unsigned programID);
-
-	YandereText create_text(std::string text, std::string fontName, int size, float x, float y);
-
-	glm::mat4 calculate_matrix(YanTransforms transforms);
-
-private:
-	unsigned add_shader(YandereShader& shader);
-	unsigned add_shader(YandereShader&& shader);
+	class yandere_resources
+	{
+	public:
+		yandere_resources();
+		~yandere_resources();
+		
+		std::map<std::string, unsigned> load_shaders_from(std::string shaders_folder);
+		
+		std::map<std::string, unsigned> load_models_from(std::string models_folder);
+		void load_default_models();
+		
+		std::map<std::string, unsigned> load_textures_from(std::string textures_folder);
+		void load_default_textures();
+		
+		
+		yandere_model create_model(const unsigned id) const noexcept;
+		yandere_model create_model(const core::model* model) const noexcept;
+		
+		yandere_texture create_texture(const unsigned id) const noexcept;
+		yandere_texture create_texture(const core::texture* texture) const noexcept;
+		
+		
+		unsigned add_model(core::model& model);
+		unsigned add_model(core::model&& model);
+		void remove_model(const unsigned model_id);
+		void set_model(const unsigned model_id, core::model& model);
+		void set_model(const unsigned model_id, core::model&& model);
+		core::model model(const unsigned model_id) const noexcept;
+		
+		unsigned add_texture(core::texture& texture);
+		unsigned add_texture(core::texture&& texture);
+		void remove_texture(const unsigned texture_id);
+		void set_texture(const unsigned texture_id, core::texture& texture);
+		void set_texture(const unsigned texture_id, core::texture&& texture);
+		core::texture texture(const unsigned texture_id) const noexcept;
+		
+		unsigned add_shader(core::shader& shader);
+		unsigned add_shader(core::shader&& shader);
+		
+		yandere_shader_program create_shader_program(const yandere_controller* ctl, std::vector<unsigned> shader_id_vec);
+		yandere_shader_program shader_program(const yandere_controller* ctl, const unsigned program_id);
+		
+	private:
+		unsigned add_shader_program(core::shader_program& program);
+		unsigned add_shader_program(core::shader_program&& program);
+		
+		void output_error(unsigned object_id, bool is_program = false);
 	
-	unsigned add_shader_program(YandereShaderProgram& program);
-	unsigned add_shader_program(YandereShaderProgram&& program);
+		std::vector<unsigned> _empty_models;
+		std::vector<core::model> _model_vec;
+		
+		std::vector<unsigned> _empty_textures;
+		std::vector<core::texture> _texture_vec;
+		std::vector<core::shader> _shader_vec;
+		
+		std::vector<core::shader_program> _shader_program_vec;
+	};
 
-	void output_error(unsigned, bool = false);
 
-	void config_GL_buffers(bool s = true, bool a = true, bool c = true);
+	class yandere_text;
 
-	void load_default_models();
+	class yandere_controller
+	{
+	public:
+		yandere_controller(bool stencil, bool antialiasing, bool culling);
+		~yandere_controller();
 
-	void update_matrix_pointers(YandereCamera* camera);
-	void apply_uniforms();
+		void config_options(bool stencil, bool antialiasing, bool culling);
+		
+		void set_draw_camera(yandere_camera* camera);
+		
+		const glm::mat4* view_matrix_ptr() const noexcept;
+		const glm::mat4* projection_matrix_ptr() const noexcept;
 
-	static void debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
+		void load_font(const std::string font_path);
+		FT_Face font(const std::string name) const noexcept;
+		
+		yandere_resources& resources();
 
-	bool _glewInitialized = false;
+		yandere_shader_program create_shader_program(std::vector<unsigned> shader_id_vec);
 
-	YandereCamera* _mainCamera = nullptr;
+	private:
+		static void debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
 
-	unsigned _storedShaderID = -1;
+		core::initializer _initializer;
+		yandere_resources _resources;
+		yandere_camera* _main_camera = nullptr;
 
-	glm::mat4* _viewMatrix = nullptr;
-	glm::mat4* _projectionMatrix = nullptr;
+		unsigned _stored_shader_id = -1;
 
-    size_t _currentModelSize;
-    
-    std::vector<unsigned> _emptyModels;
-    std::vector<YandereModel> _modelVec;
-    
-    std::vector<unsigned> _emptyTextures;
-	std::vector<YandereTexture> _textureVec;
-    std::vector<YandereShader> _shaderVec;
-    
-	std::vector<YandereShaderProgram> _shaderProgramVec;
+		size_t _current_model_size;
+		
+		std::map<std::string, FT_Face> _fonts_map;
+		
+		FT_Library _ft_lib;
+		bool _font_init = false;
+	};
+
+	class yandere_object
+	{
+	public:
+		yandere_object() {};
+
+		yandere_object(const yandere_shader_program program,
+		const yandere_model model,
+		const yandere_texture texture,
+		const yan_transforms transform,
+		const yan_color color = {});
+
+		void set_position(yan_position position);
+		void translate(yan_position delta);
+
+		void set_scale(yan_scale scale);
+		void set_rotation(float rotation);
+		void rotate(float rotation);
+
+		void set_rotation_axis(yan_position axis);
+
+		void set_color(yan_color color);
+
+		void draw_update() const noexcept;
+		
+	protected:
+		void mats_update();
+		static glm::mat4 calculate_matrix(yan_transforms transforms);
+
+		yan_transforms _transform;
+		yan_color _color;
+		
+	private:
+		yandere_shader_program _shader;
+		yandere_model _model;
+		yandere_texture _texture;
+
+		core::object_data _obj_data;
+	};
+
+
+	class yandere_line : public yandere_object
+	{
+	public:
+		yandere_line() {};
+
+		yandere_line(yandere_resources& resources, const yandere_shader_program shader,
+		const yan_position point0, const yan_position point1,
+		const float width,
+		const yan_color color = {});
+
+		void set_positions(yan_position point0, yan_position point1);
+		void set_widths(float width);
+		void set_rotations(float rotation);
+		
+	private:
+		void calculate_variables();
+
+		yan_position _point0;
+		yan_position _point1;
+		float _width;
+	};
 	
-	std::map<std::string, FT_Face> _fontsMap;
+	class yandere_text
+	{
+	public:
+		yandere_text(const yandere_shader_program shader, 
+		const FT_Face font, const std::string text,
+		const int size, const float x, const float y);
+		
+		void draw_update() const noexcept;
+		
+		void set_text(const std::string text);
+		
+		void set_position(const float x, const float y);
+		std::array<float, 2> position() const noexcept;
+		
+		float text_width() const noexcept;
+		float text_height() const noexcept;
+		
+		std::string text() const noexcept;
+		
+	private:
+		static const int _load_chars = 128;
 	
-	FT_Library _ftLib;
-	bool _fontInit = false;
+		std::vector<yandere_object> _letter_objs;
+		
+		std::vector<core::model> _letter_models;
+		std::array<core::letter_data, _load_chars> _letters;
 
-	unsigned _elementObjectBufferID = -1;
-	unsigned _vertexArrayObjectID = -1;
-	unsigned _vertexBufferObjectID = -1;
+		yandere_shader_program _shader;
+		core::texture _texture;
+		
+		std::string _text;
+		
+		float _x = 0;
+		float _y = 0;
+		
+		int _size = 0;
+		
+		float _text_width = 0;
+		float _text_height = 0;
+	};
 
-	unsigned _textureBufferObjectID = -1;
 
-	unsigned _shaderViewLocation = -1;
-	unsigned _shaderProjectionLocation = -1;
-
-	friend class YandereObject;
-	friend class YandereObjects;
-};
-
-class YandereObject
-{
-private:
-	struct ObjectData
-    {
-        YanColor color;
-        float matrix[16];
-    };
-
-public:
-	YandereObject();
-
-	YandereObject(YandereInitializer*, unsigned modelID, unsigned textureID, YanTransforms transform, YanColor color = {}, YanBorder border = {});
-
-	void set_position(YanPosition position);
-	void translate(YanPosition positionDelta);
-
-	void set_scale(YanScale scale);
-	void set_rotation(float rotation);
-	void rotate(float rotation);
-
-	void set_rotation_axis(YanPosition axis);
-
-	void set_color(YanColor color);
-	void set_border(YanBorder border);
-
-	void draw_update();
+	class yandere_gui;
 	
-protected:
-	void mats_update();
+	class yandere_panel
+	{
+	public:
+		template<typename T>
+		struct object_position
+		{
+			float x;
+			float y;
+			T object;
+		};
+			
+		yandere_panel(yandere_gui* gui, float x0, float y0, float x1, float y1);
+		
+		unsigned add_text(object_position<yandere_text> text);
+		
+	private:
+		yandere_gui* _gui;
 
-	void yGL_setup(bool);
+		float _x;
+		float _y;
+		
+		float _width;
+		float _height;
 
-	YanTransforms _transform;
-	YanTransforms _scaledTransform;
-	YanColor _color;
-	YanBorder _border;
+		float _x0;
+		float _y0;
+		float _x1;
+		float _y1;
+		
+		std::vector<object_position<yandere_text>> _texts_vec;
+		std::vector<object_position<yandere_object>> _gui_objects;
+		
+		std::vector<uint8_t> _order_vec;
+	};
 
-	unsigned _vertexBufferObject = 0;
-
-	YandereInitializer* _yanInitializer;
-	
-private:
-    unsigned _modelID;
-    unsigned _textureID;
-
-	ObjectData _objData;
-	ObjectData _scaledObjData;
-};
-
-class YandereObjects
-{
-private:
-	struct ObjectData
-    {
-        YanColor color;
-        float matrix[16];
-    };
-    
-public:
-	YandereObjects();
-
-	YandereObjects(YandereInitializer*, unsigned modelID, unsigned textureID, std::vector<YanTransforms> transforms, size_t size, std::vector<YanColor> colors = {{}}, YanBorder border = {});
-
-	bool empty();
-
-	void set_positions(std::vector<YanPosition> positions);
-	void set_position(YanPosition position);
-	void translate(std::vector<YanPosition> positionDelta);
-	void translate(YanPosition positionDelta);
-
-	void set_scales(std::vector<YanScale> scales);
-	void set_rotations(std::vector<float> rotations);
-	void rotate(std::vector<float> rotations);
-
-	void set_rotation_axes(std::vector<YanPosition> axes);
-
-	void set_colors(std::vector<YanColor> colors);
-	void set_border(YanBorder border);
-
-	void draw_update();
-	
-protected:
-	void mats_update();
-
-	void yGL_setup(bool);
-
-	std::vector<YanTransforms> _transforms;
-	std::vector<YanTransforms> _scaledTransforms;
-	std::vector<YanColor> _colors;
-	YanBorder _border;
-
-	unsigned _instanceVertexBufferObject = 0;
-
-	YandereInitializer* _yanInitializer;
-
-	size_t _transformsSize;
-	bool _singleColor;
-	
-private:
-    unsigned _modelID;
-    unsigned _textureID;
-
-	std::vector<ObjectData> _instancedData;
-	std::vector<ObjectData> _scaledInstancedData;
-};
-
-
-class YandereLine : public YandereObject
-{
-public:
-	YandereLine() {};
-
-	YandereLine(YandereInitializer*, YanPosition point0, YanPosition point1, float width, YanColor color = {}, YanBorder border = {});
-
-	void set_positions(YanPosition point0, YanPosition point1);
-	void set_widths(float width);
-	void set_rotations(float rotation);
-	
-private:
-	void calculate_variables();
-
-	YanPosition _point0;
-	YanPosition _point1;
-	float _width;
-};
-
-class YandereLines : public YandereObjects
-{
-public:
-	YandereLines() {};
-
-	YandereLines(YandereInitializer*, std::vector<std::array<YanPosition, 2>> points, size_t size, std::vector<float> widths, std::vector<YanColor> colors = {}, YanBorder border = {});
-
-	void set_positions(std::vector<std::array<YanPosition, 2>> points);
-	void set_widths(std::vector<float> widths);
-	void set_rotations(std::vector<float> rotations);
-	
-private:
-	void calculate_variables();
-
-	std::vector<std::array<YanPosition, 2>> _points;
-	std::vector<float> _widths;
-};
-
-class YandereText
-{
-public:
-	YandereText();
-	YandereText(YandereInitializer* yanInitializer, unsigned modelOffset, int size, std::vector<LetterData> letters, unsigned textureID);
-	
-	void draw_update();
-	
-	void change_text(std::string newText);
-	
-	void set_position(float x, float y);
-	std::array<float, 2> getPosition();
-	
-	float text_width();
-	float text_height();
-	
-private:
-	YandereInitializer* _yanInitializer;
-
-	std::vector<YandereObject> _letterObjs;
-
-	std::vector<LetterData> _letters;
-
-	unsigned _textureID;
-	
-	float x = 0;
-	float y = 0;
-	
-	int _size = 0;
-	
-	unsigned _modelOffset = 0;
-	
-	float _textWidth = 0;
-	float _textHeight = 0;
+	class yandere_gui
+	{
+	public:
+		yandere_gui() {};
+		
+		yandere_panel add_panel(float x0, float y0, float x1, float y1);
+	};
 };
 
 #endif

@@ -10,826 +10,783 @@
 
 #include "yanconv.h"
 
-//#define YANTIMINGS
+using namespace yandereconv;
 
-std::vector<std::string> stringSplit(std::string splitStr, std::string delim)
+std::vector<std::string> yandereconv::string_split(std::string text, std::string delimeter)
 {
-    std::vector<std::string> retVec;
+    std::vector<std::string> r_vec;
 
-    int currDelimPos = splitStr.find(delim);
-    while(currDelimPos!=-1)
+    int c_delimeter_pos = text.find(delimeter);
+    while(c_delimeter_pos!=-1)
     {
-        retVec.push_back(splitStr.substr(0, currDelimPos));
+        r_vec.push_back(text.substr(0, c_delimeter_pos));
 
-        splitStr = splitStr.substr(currDelimPos+1);
-        currDelimPos = splitStr.find(delim);
+        text = text.substr(c_delimeter_pos+1);
+        c_delimeter_pos = text.find(delimeter);
     }
 
-    retVec.push_back(splitStr.substr(0));
+    r_vec.push_back(text.substr(0));
 
-    return retVec;
+    return r_vec;
 }
 
 template <typename T>
-inline void cAToNumber(char* val, T* returnVal)
+void yandereconv::chars_to_number(char* val, T* r_val)
 {
-    T calcVal;
+    T temp_val;
 
-    *returnVal = 0;
-    memcpy(&calcVal, val, sizeof(T));
+    *r_val = 0;
+    memcpy(&temp_val, val, sizeof(T));
 
-    uint8_t orderByte = 1;
-    T byteMask = 0xff;
-    bool rightMove = true;
+    uint8_t order_byte = 1;
+    T byte_mask = 0xff;
+    bool right_move = true;
 
     for(int i = 0; i < sizeof(T); ++i)
     {
-        if(rightMove)
+        if(right_move)
         {
-            *returnVal |= ((calcVal >> 8*(sizeof(T)-orderByte)) & byteMask);
+            *r_val |= ((temp_val >> 8*(sizeof(T)-order_byte)) & byte_mask);
         } else
         {
-            *returnVal |= ((calcVal << 8*(sizeof(T)-orderByte)) & byteMask);
+            *r_val |= ((temp_val << 8*(sizeof(T)-order_byte)) & byte_mask);
         }
-        orderByte += rightMove ? 2 : -2;
-        rightMove = rightMove && (orderByte < sizeof(T));
-        orderByte = orderByte > sizeof(T) ? sizeof(T)-1 : orderByte;
-        byteMask = byteMask << 8;
+        order_byte += right_move ? 2 : -2;
+        right_move = right_move && (order_byte < sizeof(T));
+        order_byte = order_byte > sizeof(T) ? sizeof(T)-1 : order_byte;
+        byte_mask = byte_mask << 8;
     }
 }
 
 template <typename T>
-inline std::vector<T> lengthsToPrefix(std::vector<T> lengthsArr, T maxVal, uint8_t* highestLength)
+std::vector<T> yandereconv::lengths_to_prefix(std::vector<T> lengths_vec, T max_val, uint8_t* highest_length)
 {
-    //is this fast or optimized? i dont know
-    //am i done with trying? yes
-    size_t lArrSize = lengthsArr.size(); //this could be not big enough if the max length in the vector is bigger than its size
-    std::vector<uint8_t> countsArr(lArrSize, 0);
+    size_t lengths_vec_size = lengths_vec.size(); //this could be not big enough if the max length in the vector is bigger than its size
+    std::vector<uint8_t> counts_vec(lengths_vec_size, 0);
 
-    uint8_t maxBitLength = 0;
-    for(const auto& currLength : lengthsArr)
+    uint8_t max_bit_length = 0;
+    for(const auto& c_length : lengths_vec)
     {
-        countsArr[currLength]++;
-        if(maxBitLength<currLength) maxBitLength = currLength;
+        counts_vec[c_length]++;
+        if(max_bit_length<c_length) max_bit_length = c_length;
     }
 
-    if(highestLength!=NULL) *highestLength = maxBitLength;
+    if(highest_length!=nullptr) *highest_length = max_bit_length;
 
     int code = 0;
-    countsArr[0] = 0;
-    std::vector<int> codeLengths(maxBitLength+1, 0);
-    for(int i = 1; i <= maxBitLength; ++i)
+    counts_vec[0] = 0;
+    std::vector<int> code_lengths(max_bit_length+1, 0);
+    for(int i = 1; i <= max_bit_length; ++i)
     {
-        code = (code+countsArr[i-1])<<1;
-        codeLengths[i] = code;
+        code = (code+counts_vec[i-1])<<1;
+        code_lengths[i] = code;
     }
 
-    std::vector<T> finalArr(lArrSize, maxVal);
-    for(int i = 0; i < lArrSize; ++i)
+    std::vector<T> r_vec(lengths_vec_size, max_val);
+    for(int i = 0; i < lengths_vec_size; ++i)
     {
-        int currLength = lengthsArr[i];
-        if(currLength!=0)
+        int c_length = lengths_vec[i];
+        if(c_length!=0)
         {
-            finalArr[i] = codeLengths[currLength];
-            codeLengths[currLength]++;
+            r_vec[i] = code_lengths[c_length];
+            code_lengths[c_length]++;
         }
     }
 
-    return finalArr;
+    return r_vec;
 }
 
-YandereImage::YandereImage() : image({})
+yandere_image::yandere_image() : image({})
 {
 }
 
-YandereImage::YandereImage(std::string imagePath) : _imagePath(imagePath)
+yandere_image::yandere_image(std::string image_path) : _image_path(image_path)
 {
-    if(!read(imagePath))
+    if(!read(image_path))
     {
-    	throw std::runtime_error("cant read " + imagePath);
+    	throw std::runtime_error("cant read " + image_path);
     }
 }
 
-std::vector<uint8_t> YandereImage::yan_deflate(std::vector<uint8_t>& inputData)
+std::vector<uint8_t> yandere_image::yan_deflate(std::vector<uint8_t>& input_data)
 {
-    std::vector<uint8_t> deflatedData;
+    std::vector<uint8_t> deflated_data;
 
-    uint8_t compressionInfo = (inputData[0]>>4);
-    uint8_t compressionMethod = (inputData[0]&0x0f);
+    uint8_t compression_info = (input_data[0]>>4);
+    uint8_t compression_method = (input_data[0]&0x0f);
 
-    if(compressionMethod!=8 | compressionInfo>7)
+    if(compression_method!=8 | compression_info>7)
     {
         //all deflate streams have 8 compression method (at the moment)
-        return std::move(deflatedData);
+        return std::move(deflated_data);
     }
 
-    uint8_t compressionLevel = (inputData[1]>>6);
-    bool presetDict = ((inputData[1]>>5)&0x1);
+    uint8_t compression_level = (input_data[1]>>6);
+    bool preset_dict = ((input_data[1]>>5)&0x1);
 
-    char checksumStr[4] = {};
-    checksumStr[0] = static_cast<char>(inputData[0]);
-    checksumStr[1] = static_cast<char>(inputData[1]);
-    checksumStr[2] = 0;
-    checksumStr[3] = 0;
+    char checksum_str[4] = {};
+    checksum_str[0] = static_cast<char>(input_data[0]);
+    checksum_str[1] = static_cast<char>(input_data[1]);
+    checksum_str[2] = 0;
+    checksum_str[3] = 0;
 
-    unsigned checksumNum;
-    cAToNumber<unsigned>(checksumStr, &checksumNum);
+    unsigned checksum_num;
+    chars_to_number<unsigned>(checksum_str, &checksum_num);
 
-    if(checksumNum%31!=0)
+    if(checksum_num%31!=0)
     {
         //the checksum is just the 2 bytes being divisible by 31
-        return std::move(deflatedData);
+        return std::move(deflated_data);
     }
 
-    bool lastBlock = false;
-    uint8_t compressionType;
+    bool last_block = false;
+    uint8_t compression_type;
     
-    uint_fast8_t bitOffset = 0;
+    uint_fast8_t bit_offset = 0;
 	int i = 2;
 	
-	auto shiftOffsets = [&bitOffset, &i](uint_fast8_t num) mutable { bitOffset+=num; if(bitOffset>7) { ++i; bitOffset &= 0x7;} };
-	auto shiftOffset = [&bitOffset, &i]() mutable {++bitOffset; i += ((bitOffset)&0x8)>>3; bitOffset &= 0x7;};
-	auto readForward = [&bitOffset, &i, &inputData, &shiftOffsets](uint_fast8_t num) mutable -> unsigned {auto retVal = ((((inputData[i]>>bitOffset)&((2<<(num-1))-1)) | ((inputData[i+1]<<(8-bitOffset))&((2<<(num-1))-1)))); shiftOffsets(num); return retVal;};
+	auto shift_offsets = [&bit_offset, &i](uint_fast8_t num) mutable { bit_offset+=num; if(bit_offset>7) { ++i; bit_offset &= 0x7;} };
+	auto shift_offset = [&bit_offset, &i]() mutable {++bit_offset; i += ((bit_offset)&0x8)>>3; bit_offset &= 0x7;};
+	auto read_forward = [&bit_offset, &i, &input_data, &shift_offsets](uint_fast8_t num) mutable -> unsigned {auto retVal = ((((input_data[i]>>bit_offset)&((2<<(num-1))-1)) | ((input_data[i+1]<<(8-bit_offset))&((2<<(num-1))-1)))); shift_offsets(num); return retVal;};
     //2 first bytes are zlib stuff so start reading DEFLATE blocks at 2 offset
     //int might be too small for large data (gigabytes range)
     //but my implementation isnt even fast enough to read that much in a realistic amount of time
-    while(!lastBlock)
+    while(!last_block)
     {
-        lastBlock = ((inputData[i]>>bitOffset)&0x1);
-        shiftOffset();
+        last_block = ((input_data[i]>>bit_offset)&0x1);
+        shift_offset();
 
-        compressionType = ((inputData[i]>>bitOffset)&0x1);
-        shiftOffset();
-        compressionType |= ((inputData[i]>>bitOffset)&0x1)<<1;
-        shiftOffset();
+        compression_type = ((input_data[i]>>bit_offset)&0x1);
+        shift_offset();
+        compression_type |= ((input_data[i]>>bit_offset)&0x1)<<1;
+        shift_offset();
 
         //00 - no compression
         //01 - compressed with fixed huffman codes
         //10 - compressed with dynamic huffman codes
         //11 - error
-        if(compressionType==0)
+        if(compression_type==0)
         {
-            if(bitOffset>0) ++i;
-            bitOffset = 0; //skip the partial bytes
-            char dataLengthStr[4] = {};
-            dataLengthStr[0] = static_cast<char>(inputData[i]);
-            dataLengthStr[1] = static_cast<char>(inputData[i+1]);
-            dataLengthStr[2] = 0;
-            dataLengthStr[3] = 0;
+            if(bit_offset>0) ++i;
+            bit_offset = 0; //skip the partial bytes
+            char data_length_str[4] = {};
+            data_length_str[0] = static_cast<char>(input_data[i]);
+            data_length_str[1] = static_cast<char>(input_data[i+1]);
+            data_length_str[2] = 0;
+            data_length_str[3] = 0;
             i+=4; //skip the one's complement of length
-            unsigned dataLength;
-            memcpy(&dataLength, dataLengthStr, 4);
+            unsigned data_length;
+            memcpy(&data_length, data_length_str, 4);
 
-            deflatedData.reserve(dataLength);
-            for(int d = 0; d < dataLength; ++d)
+            deflated_data.reserve(data_length);
+            for(int d = 0; d < data_length; ++d)
             {
-                deflatedData.push_back(inputData[i++]);
+                deflated_data.push_back(input_data[i++]);
             }
         } else
         {
-            int readLength = 0;
-            int readDistance = 0;
+            int read_length = 0;
+            int read_distance = 0;
 
-            if(compressionType==3)
+            if(compression_type==3)
             {
-                return std::move(deflatedData);
-            } else if(compressionType==2)
+                return std::move(deflated_data);
+            } else if(compression_type==2)
             {
-                unsigned codesLengthTotal = static_cast<unsigned>(readForward(5));
-                codesLengthTotal += 257;
+                unsigned codes_length_total = static_cast<unsigned>(read_forward(5));
+                codes_length_total += 257;
 
-                unsigned codesDistanceTotal = static_cast<unsigned>(readForward(5));
-                ++codesDistanceTotal;
+                unsigned codes_distance_total = static_cast<unsigned>(read_forward(5));
+                ++codes_distance_total;
 
-                unsigned codeLength = static_cast<unsigned>(readForward(4));
-                codeLength += 4;
+                unsigned code_length = static_cast<unsigned>(read_forward(4));
+                code_length += 4;
 
-                std::vector<unsigned> lengthCodesBin;
-                lengthCodesBin.reserve(19);
+                std::vector<unsigned> length_codes_bin;
+                length_codes_bin.reserve(19);
                 for(int lc = 0; lc < 19; ++lc)
                 {
-                    uint8_t lengthCode;
-                    if(lc<codeLength)
+                    uint8_t length_code;
+                    if(lc<code_length)
                     {
-                        lengthCode = readForward(3);
+                        length_code = read_forward(3);
                     } else
                     {
-                        lengthCode = 0;
+                        length_code = 0;
                     }
 
-                    lengthCodesBin.push_back(lengthCode);
+                    length_codes_bin.push_back(length_code);
                 }
 
                 //reorder the codes
-                lengthCodesBin = {lengthCodesBin[3], lengthCodesBin[17], lengthCodesBin[15], lengthCodesBin[13], lengthCodesBin[11], lengthCodesBin[9], lengthCodesBin[7], lengthCodesBin[5], lengthCodesBin[4], lengthCodesBin[6], lengthCodesBin[8], lengthCodesBin[10], lengthCodesBin[12], lengthCodesBin[14], lengthCodesBin[16], lengthCodesBin[18], lengthCodesBin[0], lengthCodesBin[1], lengthCodesBin[2]};
+                length_codes_bin = {length_codes_bin[3], length_codes_bin[17], length_codes_bin[15], length_codes_bin[13], length_codes_bin[11], length_codes_bin[9], length_codes_bin[7], length_codes_bin[5], length_codes_bin[4], length_codes_bin[6], length_codes_bin[8], length_codes_bin[10], length_codes_bin[12], length_codes_bin[14], length_codes_bin[16], length_codes_bin[18], length_codes_bin[0], length_codes_bin[1], length_codes_bin[2]};
 
-                std::vector<unsigned> lengthCodesVec = lengthCodesBin;
-                lengthCodesBin = lengthsToPrefix<unsigned>(lengthCodesBin, UINT_MAX, NULL);
+                std::vector<unsigned> length_codes_vec = length_codes_bin;
+                length_codes_bin = lengths_to_prefix<unsigned>(length_codes_bin, UINT_MAX, nullptr);
 
-                size_t lciSize = lengthCodesBin.size();
+                size_t lci_size = length_codes_bin.size();
 
-                std::vector<unsigned> codewordsVec;
-                uint_fast16_t readingBits = 0;
-                uint_fast8_t currCodeLength = 0;
-                for(;codesLengthTotal!=0; readingBits <<= 1)
+                std::vector<unsigned> codewords_vec;
+                uint_fast16_t reading_bits = 0;
+                uint_fast8_t currcode_length = 0;
+                for(;codes_length_total!=0; reading_bits <<= 1)
                 {
-                    readingBits |= (inputData[i]>>bitOffset)&0x1;
-                    shiftOffset();
-                    currCodeLength++;
+                    reading_bits |= (input_data[i]>>bit_offset)&0x1;
+                    shift_offset();
+                    currcode_length++;
 
-                    int codeIndex = lciSize;
-                    for(int lci = 0; lci < lciSize; ++lci)
+                    int code_index = lci_size;
+                    for(int lci = 0; lci < lci_size; ++lci)
                     {
-                        if(lengthCodesBin[lci]==readingBits)
+                        if(length_codes_bin[lci]==reading_bits)
                         {
-                            codeIndex = lci;
+                            code_index = lci;
                             break;
                         }
                     }
 
-                    if(codeIndex<19 && lengthCodesVec[codeIndex]==currCodeLength)
+                    if(code_index<19 && length_codes_vec[code_index]==currcode_length)
                     {
-                        readLength = 0;
-                        if(codeIndex<16)
+                        read_length = 0;
+                        if(code_index<16)
                         {
                             //code length 0-15
-                            codewordsVec.push_back(codeIndex);
-                            --codesLengthTotal;
-                        } else if(codeIndex==16)
+                            codewords_vec.push_back(code_index);
+                            --codes_length_total;
+                        } else if(code_index==16)
                         {
                             //this code reads previous code length 3-6 times (2 extra bits to read)
-                            readLength = readForward(2);
-                            readLength += 0x3;
-                            uint8_t prevCodeLength = codewordsVec[codewordsVec.size()-1];
-                            codewordsVec.insert(codewordsVec.end(), readLength, prevCodeLength);
-                            codesLengthTotal -= readLength;
-                        } else if(codeIndex==17)
+                            read_length = read_forward(2);
+                            read_length += 0x3;
+                            uint8_t prevcode_length = codewords_vec[codewords_vec.size()-1];
+                            codewords_vec.insert(codewords_vec.end(), read_length, prevcode_length);
+                            codes_length_total -= read_length;
+                        } else if(code_index==17)
                         {
                             //this code copies 0 code 3-10 times (3 extra bits to read)
-                            readLength = readForward(3);
-                            readLength += 0x3;
-                            codewordsVec.insert(codewordsVec.end(), readLength, 0);
-                            codesLengthTotal -= readLength;
+                            read_length = read_forward(3);
+                            read_length += 0x3;
+                            codewords_vec.insert(codewords_vec.end(), read_length, 0);
+                            codes_length_total -= read_length;
                         } else
                         {
                             //this code copies 0 code 11-138 times (7 extra bits to read)
-                            readLength = readForward(7);
-                            readLength += 0xb;
-                            codewordsVec.insert(codewordsVec.end(), readLength, 0);
-                            codesLengthTotal -= readLength;
+                            read_length = read_forward(7);
+                            read_length += 0xb;
+                            codewords_vec.insert(codewords_vec.end(), read_length, 0);
+                            codes_length_total -= read_length;
                         }
 
-                        currCodeLength = 0;
-                        readingBits = 0;
+                        currcode_length = 0;
+                        reading_bits = 0;
                     }
                 }
 
-                std::vector<unsigned> codewordsCodeVec = codewordsVec;
-                uint8_t highestCodewordsCodeLength;
-                codewordsCodeVec = lengthsToPrefix<unsigned>(codewordsCodeVec, UINT_MAX, &highestCodewordsCodeLength);
+                std::vector<unsigned> codewords_code_vec = codewords_vec;
+                uint8_t max_codeword_code_length;
+                codewords_code_vec = lengths_to_prefix<unsigned>(codewords_code_vec, UINT_MAX, &max_codeword_code_length);
 
                 //copy pasting :(
-                std::vector<unsigned> distanceCodeVec;
-                readingBits = 0;
-                currCodeLength = 0;
-                for(;codesDistanceTotal!=0; readingBits <<= 1)
+                std::vector<unsigned> distance_code_vec;
+                reading_bits = 0;
+                currcode_length = 0;
+                for(;codes_distance_total!=0; reading_bits <<= 1)
                 {
-                    readingBits |= (inputData[i]>>bitOffset)&0x1;
-                    shiftOffset();
-                    ++currCodeLength;
+                    reading_bits |= (input_data[i]>>bit_offset)&0x1;
+                    shift_offset();
+                    ++currcode_length;
 
-                    int codeIndex = lciSize;
-                    for(int lci = 0; lci < lciSize; ++lci)
+                    int code_index = lci_size;
+                    for(int lci = 0; lci < lci_size; ++lci)
                     {
-                        if(lengthCodesBin[lci]==readingBits)
+                        if(length_codes_bin[lci]==reading_bits)
                         {
-                            codeIndex = lci;
+                            code_index = lci;
                             break;
                         }
                     }
 
-                    if(codeIndex<19 && lengthCodesVec[codeIndex]==currCodeLength)
+                    if(code_index<19 && length_codes_vec[code_index]==currcode_length)
                     {
-                        readLength = 0;
-                        if(codeIndex<16)
+                        read_length = 0;
+                        if(code_index<16)
                         {
                             //code length 0-15
-                            distanceCodeVec.push_back(codeIndex);
-                            --codesDistanceTotal;
-                        } else if(codeIndex==16)
+                            distance_code_vec.push_back(code_index);
+                            --codes_distance_total;
+                        } else if(code_index==16)
                         {
                             //this code reads previous code length 3-6 times (2 extra bits to read)
-                            readLength = readForward(2);
-                            readLength += 0x3;
-                            uint8_t prevCodeLength = distanceCodeVec[distanceCodeVec.size()-1];
-                            distanceCodeVec.insert(distanceCodeVec.end(), readLength, prevCodeLength);
-                            codesDistanceTotal -= readLength;
-                        } else if(codeIndex==17)
+                            read_length = read_forward(2);
+                            read_length += 0x3;
+                            uint8_t prevcode_length = distance_code_vec[distance_code_vec.size()-1];
+                            distance_code_vec.insert(distance_code_vec.end(), read_length, prevcode_length);
+                            codes_distance_total -= read_length;
+                        } else if(code_index==17)
                         {
                             //this code copies 0 code 3-10 times (3 extra bits to read)
-                            readLength = readForward(3);
-                            readLength += 0x3;
-                            distanceCodeVec.insert(distanceCodeVec.end(), readLength, 0);
-                            codesDistanceTotal -= readLength;
+                            read_length = read_forward(3);
+                            read_length += 0x3;
+                            distance_code_vec.insert(distance_code_vec.end(), read_length, 0);
+                            codes_distance_total -= read_length;
                         } else
                         {
                             //this code copies 0 code 11-138 times (7 extra bits to read)
-                            readLength = readForward(7);
-                            readLength += 0xb;
-                            distanceCodeVec.insert(distanceCodeVec.end(), readLength, 0);
-                            codesDistanceTotal -= readLength;
+                            read_length = read_forward(7);
+                            read_length += 0xb;
+                            distance_code_vec.insert(distance_code_vec.end(), read_length, 0);
+                            codes_distance_total -= read_length;
                         }
 
-                        currCodeLength = 0;
-                        readingBits = 0;
+                        currcode_length = 0;
+                        reading_bits = 0;
                     }
                 }
 
-                std::vector<unsigned> distanceCodeLengthVec = distanceCodeVec;
+                std::vector<unsigned> distance_code_length_vec = distance_code_vec;
 
-                uint8_t highestDistanceCodeLength;
-                distanceCodeVec = lengthsToPrefix<unsigned>(distanceCodeVec, UINT_MAX, &highestDistanceCodeLength);
+                uint8_t max_distance_code_length;
+                distance_code_vec = lengths_to_prefix<unsigned>(distance_code_vec, UINT_MAX, &max_distance_code_length);
 
-                size_t cVSize = codewordsCodeVec.size();
+                size_t cv_size = codewords_code_vec.size();
 
-                std::vector<uint_fast8_t> codewordsLengthCodeSize(highestCodewordsCodeLength+1);
-                std::vector<std::vector<uint_fast16_t>> codewordsLengthCodeLookup(highestCodewordsCodeLength+1);
+                std::vector<uint_fast8_t> codewords_length_code_size(max_codeword_code_length+1);
+                std::vector<std::vector<uint_fast16_t>> codewords_length_code_lookup(max_codeword_code_length+1);
 
-                codewordsLengthCodeSize[0] = 0;
-                codewordsLengthCodeLookup[0] = std::vector<uint_fast16_t>();
-                for(int clci = 1; clci <= highestCodewordsCodeLength; ++clci)
+                codewords_length_code_size[0] = 0;
+                codewords_length_code_lookup[0] = std::vector<uint_fast16_t>();
+                for(int clci = 1; clci <= max_codeword_code_length; ++clci)
                 {
-                    std::vector<uint_fast16_t> innerVec;
-                    for(int clcii = 0; clcii < cVSize; ++clcii)
+                    std::vector<uint_fast16_t> inner_vec;
+                    for(int clcii = 0; clcii < cv_size; ++clcii)
                     {
-                        if(codewordsVec[clcii]==clci)
+                        if(codewords_vec[clcii]==clci)
                         {
-                            innerVec.push_back(clcii);
+                            inner_vec.push_back(clcii);
                         }
                     }
 
-                    codewordsLengthCodeSize[clci] = static_cast<uint_fast8_t>(innerVec.size());
-                    codewordsLengthCodeLookup[clci] = innerVec;
+                    codewords_length_code_size[clci] = static_cast<uint_fast8_t>(inner_vec.size());
+                    codewords_length_code_lookup[clci] = inner_vec;
                 }
 
-                size_t dcVSize = distanceCodeLengthVec.size();
+                size_t dcv_size = distance_code_length_vec.size();
 
-                std::vector<std::vector<uint_fast16_t>> distanceLengthCodeLookup(highestDistanceCodeLength+1);
+                std::vector<std::vector<uint_fast16_t>> distance_length_code_lookup(max_distance_code_length+1);
 
-                distanceLengthCodeLookup[0] = std::vector<uint_fast16_t>();
-                for(int dlci = 1; dlci <= highestDistanceCodeLength; ++dlci)
+                distance_length_code_lookup[0] = std::vector<uint_fast16_t>();
+                for(int dlci = 1; dlci <= max_distance_code_length; ++dlci)
                 {
-                    std::vector<uint_fast16_t> innerVec;
-                    for(int dlcii = 0; dlcii < dcVSize; ++dlcii)
+                    std::vector<uint_fast16_t> inner_vec;
+                    for(int dlcii = 0; dlcii < dcv_size; ++dlcii)
                     {
-                        if(distanceCodeLengthVec[dlcii]==dlci)
+                        if(distance_code_length_vec[dlcii]==dlci)
                         {
-                            innerVec.push_back(dlcii);
+                            inner_vec.push_back(dlcii);
                         }
                     }
 
-                    distanceLengthCodeLookup[dlci] = innerVec;
+                    distance_length_code_lookup[dlci] = inner_vec;
                 }
 
-                uint_fast8_t currCodeLengthL = 0;
-                uint_fast16_t readingBitsL = 0;
+                uint_fast8_t currcode_length_l = 0;
+                uint_fast16_t reading_bits_l = 0;
 
-                #ifdef YANTIMINGS
-                auto startTime = std::chrono::high_resolution_clock::now();
-                long long unsigned codeDurations = 0;
-                long long unsigned codeDCounter = 0;
-                long long unsigned opDurations = 0;
-                long long unsigned opDCounter = 0;
-                #endif
-
-                for(;; readingBitsL <<= 1)
+                for(;; reading_bits_l <<= 1)
                 {
-                    readingBitsL |= (inputData[i]>>bitOffset)&0x1;
+                    reading_bits_l |= (input_data[i]>>bit_offset)&0x1;
 
-                    ++bitOffset;
-                    if(((bitOffset)&0x8)>>3)
+                    ++bit_offset;
+                    if(((bit_offset)&0x8)>>3)
                     {
                         ++i;
-                        bitOffset &= 0x7;
+                        bit_offset &= 0x7;
                     }
-                    ++currCodeLengthL;
+                    ++currcode_length_l;
 
-                    int_fast16_t codeIndex = cVSize;
+                    int_fast16_t code_index = cv_size;
 
-                    uint_fast8_t currLenLookupLength = codewordsLengthCodeSize[currCodeLengthL];
-                    for(uint_fast8_t cci = 0; cci < currLenLookupLength; ++cci)
+                    uint_fast8_t c_len_lookup_length = codewords_length_code_size[currcode_length_l];
+                    for(uint_fast8_t cci = 0; cci < c_len_lookup_length; ++cci)
                     {
-                        if(codewordsCodeVec[codewordsLengthCodeLookup[currCodeLengthL][cci]]==readingBitsL)
+                        if(codewords_code_vec[codewords_length_code_lookup[currcode_length_l][cci]]==reading_bits_l)
                         {
-                            codeIndex = codewordsLengthCodeLookup[currCodeLengthL][cci];
+                            code_index = codewords_length_code_lookup[currcode_length_l][cci];
                             break;
                         }
                     }
 
-                    if(codeIndex!=cVSize)
+                    if(code_index!=cv_size)
                     {
-                        #ifdef YANTIMINGS
-                        auto timeTaken = std::chrono::high_resolution_clock::now() - startTime;
-                        codeDurations += (std::chrono::duration_cast<std::chrono::nanoseconds>(timeTaken).count());
-                        ++codeDCounter;
-                        #endif
-
-                        if(codeIndex<256)
+                        if(code_index<256)
                         {
-                            deflatedData.push_back(static_cast<uint8_t>(codeIndex));
+                            deflated_data.push_back(static_cast<uint8_t>(code_index));
                         } else
                         {
-                            if(codeIndex==256)
-                            {
-                                #ifdef YANTIMINGS
-                                printf("(avg) one code: %u ns, (avg) one opcalc: %u ns\n", codeDurations/codeDCounter, opDurations/opDCounter);
-                                #endif
+                            if(code_index==256)
                                 break;
-                            }
 
-                            #ifdef YANTIMINGS
-                            auto startTime2 = std::chrono::high_resolution_clock::now();
-                            #endif
                             //i am addicted to copy pasting
-                            readLength = codeIndex-0xfe;
-                            int extraLengthBits = ((codeIndex-0x105)/4);
+                            //FUCK YOU THIS CODE IS GARBAGE
+                            read_length = code_index-0xfe;
+                            int extra_length_bits = ((code_index-0x105)/4);
 
-                            if(extraLengthBits!=0)
+                            if(extra_length_bits!=0)
                             {
-                                if(extraLengthBits==6)
+                                if(extra_length_bits==6)
                                 {
-                                    extraLengthBits = 0;
-                                    readLength = 258;
+                                    extra_length_bits = 0;
+                                    read_length = 258;
                                 } else
                                 {
-                                    readLength = codeIndex-0xfe;
-                                    readLength = readLength<0 ? 0 : readLength;
+                                    read_length = code_index-0xfe;
+                                    read_length = read_length<0 ? 0 : read_length;
 
-                                    int moverVal = codeIndex-0x10a;
+                                    int mover_val = code_index-0x10a;
 
-                                    int loopRange = moverVal/4+1;
-                                    for(int mli = 0; mli < loopRange; ++mli)
+                                    int loop_range = mover_val/4+1;
+                                    for(int mli = 0; mli < loop_range; ++mli)
                                     {
-                                        readLength += (moverVal+1-(4*mli))*(1<<mli);
+                                        read_length += (mover_val+1-(4*mli))*(1<<mli);
                                     }
                                 }
                             }
 
-                            for(int ext = 0; ext < extraLengthBits; ++ext)
+                            for(int ext = 0; ext < extra_length_bits; ++ext)
                             {
-                                readLength += ((inputData[i]>>bitOffset)&0x1)<<ext;
-                                shiftOffset();
+                                read_length += ((input_data[i]>>bit_offset)&0x1)<<ext;
+                                shift_offset();
                             }
 
-                            uint8_t currInnerBitsLength = 0;
-                            readDistance = 0;
-                            for(;; readDistance <<= 1)
+                            uint8_t c_inner_bits_length = 0;
+                            read_distance = 0;
+                            for(;; read_distance <<= 1)
                             {
-                                readDistance |= (inputData[i]>>bitOffset)&0x1;
-                                shiftOffset();
-                                ++currInnerBitsLength;
+                                read_distance |= (input_data[i]>>bit_offset)&0x1;
+                                shift_offset();
+                                ++c_inner_bits_length;
 
-                                int distanceIndex = dcVSize;
+                                int distance_index = dcv_size;
 
-                                size_t currLenLookupLength = distanceLengthCodeLookup[currInnerBitsLength].size();
-                                for(int dci = 0; dci < currLenLookupLength; ++dci)
+                                size_t c_len_lookup_length = distance_length_code_lookup[c_inner_bits_length].size();
+                                for(int dci = 0; dci < c_len_lookup_length; ++dci)
                                 {
-                                    if(distanceCodeVec[distanceLengthCodeLookup[currInnerBitsLength][dci]]==readDistance)
+                                    if(distance_code_vec[distance_length_code_lookup[c_inner_bits_length][dci]]==read_distance)
                                     {
-                                        distanceIndex = distanceLengthCodeLookup[currInnerBitsLength][dci];
+                                        distance_index = distance_length_code_lookup[c_inner_bits_length][dci];
                                         break;
                                     }
                                 }
 
-                                if(distanceIndex!=dcVSize)
+                                if(distance_index!=dcv_size)
                                 {
-                                    readDistance = distanceIndex+1;
+                                    read_distance = distance_index+1;
                                     break;
                                 }
                             }
 
-                            int extraDistanceBits = ((readDistance-0x3)/2);
+                            int extra_distance_bits = ((read_distance-0x3)/2);
 
-                            int moverVal = readDistance-0x6;
+                            int mover_val = read_distance-0x6;
 
-                            int loopRange = moverVal/2+1;
-                            for(int mli = 0; mli < loopRange; ++mli)
+                            int loop_range = mover_val/2+1;
+                            for(int mli = 0; mli < loop_range; ++mli)
                             {
-                                readDistance += (moverVal+1-(2*mli))*(1<<mli);
+                                read_distance += (mover_val+1-(2*mli))*(1<<mli);
                             }
 
-                            for(int ext = 0; ext < extraDistanceBits; ++ext)
+                            for(int ext = 0; ext < extra_distance_bits; ++ext)
                             {
-                                readDistance += ((inputData[i]>>bitOffset)&0x1)<<ext;
-                                shiftOffset();
+                                read_distance += ((input_data[i]>>bit_offset)&0x1)<<ext;
+                                shift_offset();
                             }
 
-                            #ifdef YANTIMINGS
-                            auto timeTaken2 = std::chrono::high_resolution_clock::now() - startTime2;
-                            opDurations += (std::chrono::duration_cast<std::chrono::nanoseconds>(timeTaken2).count());
-                            ++opDCounter;
-                            #endif
-
-                            deflatedData.reserve(readLength);
-                            unsigned deflDataEnd = deflatedData.size();
-                            for(int rb = 0; rb < readLength; ++rb)
+                            deflated_data.reserve(read_length);
+                            unsigned deflate_data_end = deflated_data.size();
+                            for(int rb = 0; rb < read_length; ++rb)
                             {
-                                deflatedData.emplace_back(deflatedData[deflDataEnd-readDistance+rb]);
+                                deflated_data.emplace_back(deflated_data[deflate_data_end-read_distance+rb]);
                             }
                         }
 
-                        currCodeLengthL = 0;
-                        readingBitsL = 0;
-
-                        #ifdef YANTIMINGS
-                        startTime = std::chrono::high_resolution_clock::now();
-                        #endif
+                        currcode_length_l = 0;
+                        reading_bits_l = 0;
                     }
                 }
              } else
              {
                 while(true)
                 {
-                    uint8_t checkBits = 0;
+                    uint8_t check_bits = 0;
                     for(int d = 0; d < 7; ++d)
                     {
-                        checkBits |= (inputData[i]>>bitOffset)&0x1;
-                        checkBits <<= 1;
-                        shiftOffset();
+                        check_bits |= (input_data[i]>>bit_offset)&0x1;
+                        check_bits <<= 1;
+                        shift_offset();
                     }
 
-                    int outBits;
-                    if(checkBits>0xc8)
+                    int out_bits;
+                    if(check_bits>0xc8)
                     {
                         //its 144-255
-                        unsigned outBits;
-                        checkBits |= (inputData[i]>>bitOffset)&0x1;
-                        shiftOffset();
+                        unsigned out_bits;
+                        check_bits |= (input_data[i]>>bit_offset)&0x1;
+                        shift_offset();
 
-                        outBits = static_cast<unsigned>(checkBits);
+                        out_bits = static_cast<unsigned>(check_bits);
 
-                        outBits <<= 1;
-                        outBits |= (inputData[i]>>bitOffset)&0x1;
-                        shiftOffset();
+                        out_bits <<= 1;
+                        out_bits |= (input_data[i]>>bit_offset)&0x1;
+                        shift_offset();
 
-                        outBits -= 0x100;
+                        out_bits -= 0x100;
 
-                        deflatedData.push_back(outBits);
+                        deflated_data.push_back(out_bits);
                         continue;
-                    } else if(checkBits>0xbf)
+                    } else if(check_bits>0xbf)
                     {
                         //its 280-287
-                        checkBits |= (inputData[i]>>bitOffset)&0x1;
-                        outBits = checkBits + 0x58;
+                        check_bits |= (input_data[i]>>bit_offset)&0x1;
+                        out_bits = check_bits + 0x58;
 
-                        shiftOffset();
-                    } else if(checkBits>0x2e)
+                        shift_offset();
+                    } else if(check_bits>0x2e)
                     {
                         //its 0-143
-                        checkBits |= (inputData[i]>>bitOffset)&0x1;
-                        checkBits -= 0x30;
+                        check_bits |= (input_data[i]>>bit_offset)&0x1;
+                        check_bits -= 0x30;
 
-                        shiftOffset();
+                        shift_offset();
 
-                        deflatedData.push_back(checkBits);
+                        deflated_data.push_back(check_bits);
                         continue;
                     } else
                     {
                         //its 256-279
-                        checkBits >>= 1;
-                        if(checkBits==0)
+                        check_bits >>= 1;
+                        if(check_bits==0)
                         {
                             break;
                         } else
                         {
-                            outBits = checkBits + 0x100;
+                            out_bits = check_bits + 0x100;
                         }
                     }
 
-                    readLength = outBits-0xfe;
-                    int clampedBits = (outBits-0x105);
-                    clampedBits = clampedBits<0 ? 0 : clampedBits;
-                    uint8_t extraLengthBits = static_cast<uint8_t>(clampedBits/4);
+                    read_length = out_bits-0xfe;
+                    int clamped_bits = (out_bits-0x105);
+                    clamped_bits = clamped_bits<0 ? 0 : clamped_bits;
+                    uint8_t extra_length_bits = static_cast<uint8_t>(clamped_bits/4);
 
-                    if(extraLengthBits==6)
+                    if(extra_length_bits==6)
                     {
-                        extraLengthBits = 0;
-                        readLength = 258;
-                    } else if(extraLengthBits!=0)
+                        extra_length_bits = 0;
+                        read_length = 258;
+                    } else if(extra_length_bits!=0)
                     {
-                        readLength = outBits-0xfe;
-                        readLength = readLength<0 ? 0 : readLength;
+                        read_length = out_bits-0xfe;
+                        read_length = read_length<0 ? 0 : read_length;
 
-                        int moverVal = outBits-0x10a;
+                        int mover_val = out_bits-0x10a;
 
-                        int loopRange = moverVal/4+1;
-                        for(int mli = 0; mli < loopRange; ++mli)
+                        int loop_range = mover_val/4+1;
+                        for(int mli = 0; mli < loop_range; ++mli)
                         {
-                            readLength += (moverVal+1-(4*mli))*(1<<mli);
+                            read_length += (mover_val+1-(4*mli))*(1<<mli);
                         }
                     }
 
-                    for(int ext = 0; ext < extraLengthBits; ++ext)
+                    for(int ext = 0; ext < extra_length_bits; ++ext)
                     {
-                        readLength += ((inputData[i]>>bitOffset)&0x1)<<ext;
-                        shiftOffset();
+                        read_length += ((input_data[i]>>bit_offset)&0x1)<<ext;
+                        shift_offset();
                     }
 
-                    readDistance = 0;
+                    read_distance = 0;
                     for(int d = 0; d < 5; ++d)
                     {
-                        readDistance <<= 1;
-                        readDistance |= (inputData[i]>>bitOffset)&0x1;
-                        shiftOffset();
+                        read_distance <<= 1;
+                        read_distance |= (input_data[i]>>bit_offset)&0x1;
+                        shift_offset();
                     }
 
-                    clampedBits = (readDistance-0x2);
-                    clampedBits = clampedBits<0 ? 0 : clampedBits;
-                    uint8_t extraDistanceBits = static_cast<uint8_t>(clampedBits/2);
+                    clamped_bits = (read_distance-0x2);
+                    clamped_bits = clamped_bits<0 ? 0 : clamped_bits;
+                    uint8_t extra_distance_bits = static_cast<uint8_t>(clamped_bits/2);
 
-                    int moverVal = readDistance-0x5;
+                    int mover_val = read_distance-0x5;
 
-                    int loopRange = moverVal/2+1;
-                    for(int mli = 0; mli < loopRange; ++mli)
+                    int loop_range = mover_val/2+1;
+                    for(int mli = 0; mli < loop_range; ++mli)
                     {
-                        readDistance += (moverVal+1-(2*mli))*(1<<mli);
+                        read_distance += (mover_val+1-(2*mli))*(1<<mli);
                     }
 
-                    readDistance++;
+                    read_distance++;
 
-                    for(int ext = 0; ext < extraDistanceBits; ++ext)
+                    for(int ext = 0; ext < extra_distance_bits; ++ext)
                     {
-                        readDistance += ((inputData[i]>>bitOffset)&0x1)<<ext;
-                        shiftOffset();
+                        read_distance += ((input_data[i]>>bit_offset)&0x1)<<ext;
+                        shift_offset();
                     }
 
-                    deflatedData.reserve(readLength);
-                    unsigned deflDataEnd = deflatedData.size();
-                    for(int rb = 0; rb < readLength; ++rb)
+                    deflated_data.reserve(read_length);
+                    unsigned deflate_data_end = deflated_data.size();
+                    for(int rb = 0; rb < read_length; ++rb)
                     {
-                        deflatedData.emplace_back(deflatedData[deflDataEnd-readDistance+rb]);
+                        deflated_data.emplace_back(deflated_data[deflate_data_end-read_distance+rb]);
                     }
                 }
             }
         }
     }
 
-    return std::move(deflatedData);
+    return std::move(deflated_data);
 }
 
-uint8_t YandereImage::sub_positive(int lVar, int rVar)
+uint8_t yandere_image::sub_positive(int lval, int rval)
 {
-    return lVar + rVar - 256;
+    return lval + rval - 256;
 }
 
-bool YandereImage::png_read(bool checkChecksums)
+bool yandere_image::png_read(bool do_checksums)
 {
-    std::ifstream inputStream(_imagePath, std::ios::binary);
+    std::ifstream input_stream(_image_path, std::ios::binary);
 
     //PNG files begin with 89 50 4e 47 0d 0a 1a 0a
-    inputStream.seekg(8, std::ios_base::beg);
+    input_stream.seekg(8, std::ios_base::beg);
 
-    uint8_t bitDepth;
-    uint8_t valuesPerPixel;
+    uint8_t bit_depth;
+    uint8_t values_per_pixel;
 
-    bool palleteUsed;
-    bool rgbUsed;
-    bool alphaChannel;
+    bool pallete_used;
+    bool rgb_used;
+    bool alpha_channel;
 
-    uint8_t valsPerByte;
+    uint8_t vals_per_byte;
 
     bool interlacing;
 
-    std::vector<uint8_t> deflateStream;
+    std::vector<uint8_t> deflate_stream;
 
-    std::vector<uint8_t> palleteVector;
+    std::vector<uint8_t> pallete_vector;
 
-    std::vector<uint8_t> tempData;
-    unsigned tempWidth = 0;
-    unsigned tempHeight = 0;
+    std::vector<uint8_t> temp_data;
+    unsigned temp_width = 0;
+    unsigned temp_height = 0;
 
-    while(inputStream.good())
+    while(input_stream.good())
     {
         //this is definitely not proper c++
-        char chunkLengthStr[4] = {};
-        inputStream.read(chunkLengthStr, 4);
-        unsigned chunkLength;
-        cAToNumber<unsigned>(chunkLengthStr, &chunkLength);
+        //THIS ISNT EVEN PROPER PROGRAMMING
+        char chunk_length_str[4] = {};
+        input_stream.read(chunk_length_str, 4);
+        unsigned chunk_length;
+        chars_to_number<unsigned>(chunk_length_str, &chunk_length);
 
-        char chunkType[4] = {};
-        inputStream.read(chunkType, 4);
+        char chunk_type[4] = {};
+        input_stream.read(chunk_type, 4);
 
-        char* chunkData = (char*)malloc(chunkLength); //char is always 1 byte long
-        inputStream.read(chunkData, chunkLength);
+        char* chunk_data = static_cast<char*>(malloc(chunk_length)); //char is always 1 byte long
+        input_stream.read(chunk_data, chunk_length);
 
         char chunkChecksum[4] = {};
-        inputStream.read(chunkChecksum, 4);
+        input_stream.read(chunkChecksum, 4);
 
-        if(checkChecksums)
+        if(do_checksums)
         {
             //too lazy
         }
 
-        if(strncmp(chunkType, "IHDR", 4)==0)
+        if(strncmp(chunk_type, "IHDR", 4)==0)
         {
-            char imageWidthStr[4] = {};
-            char imageHeightStr[4] = {};
+            char image_width_str[4] = {};
+            char image_height_str[4] = {};
             for(int i = 0; i < 4; i++)
             {
-                imageWidthStr[i] = chunkData[i];
-                imageHeightStr[i] = chunkData[i+4];
+                image_width_str[i] = chunk_data[i];
+                image_height_str[i] = chunk_data[i+4];
             }
-            cAToNumber<unsigned>(imageWidthStr, &tempWidth);
-            cAToNumber<unsigned>(imageHeightStr, &tempHeight);
+            chars_to_number<unsigned>(image_width_str, &temp_width);
+            chars_to_number<unsigned>(image_height_str, &temp_height);
 
-            bitDepth = (uint8_t)chunkData[8];
-            uint8_t colorType = (uint8_t)chunkData[9];
+            bit_depth = static_cast<uint8_t>(chunk_data[8]);
+            uint8_t colorType = static_cast<uint8_t>(chunk_data[9]);
 
-            palleteUsed = colorType&0x1;
-            rgbUsed = (colorType>>1)&0x1;
-            alphaChannel = (colorType>>2)&0x1;
+            pallete_used = colorType&0x1;
+            rgb_used = (colorType>>1)&0x1;
+            alpha_channel = (colorType>>2)&0x1;
 
-            valuesPerPixel = (2*rgbUsed)+alphaChannel+1;
+            values_per_pixel = (2*rgb_used)+alpha_channel+1;
 
-            bpp = std::ceil((valuesPerPixel*bitDepth)/8.0f);
-            valsPerByte = 8/bitDepth;
+            bpp = std::ceil((values_per_pixel*bit_depth)/8.0f);
+            vals_per_byte = 8/bit_depth;
 
-            interlacing = (bool)chunkData[12];
-        } else if(strncmp(chunkType, "IDAT", 4)==0)
+            interlacing = static_cast<bool>(chunk_data[12]);
+        } else if(strncmp(chunk_type, "IDAT", 4)==0)
         {
-            deflateStream.reserve(chunkLength);
-            for(int i = 0; i < chunkLength; i++)
+            deflate_stream.reserve(chunk_length);
+            for(int i = 0; i < chunk_length; i++)
             {
-                deflateStream.push_back(chunkData[i]);
+                deflate_stream.push_back(chunk_data[i]);
             }
-        } else if(strncmp(chunkType, "PLTE", 4)==0)
+        } else if(strncmp(chunk_type, "PLTE", 4)==0)
         {
-            if(chunkLength%3!=0)
+            if(chunk_length%3!=0)
             {
-                free(chunkData);
-                inputStream.close();
+                free(chunk_data);
+                input_stream.close();
                 return false;
             }
-            palleteVector.reserve(chunkLength);
-            for(int i = 0; i < chunkLength; i++)
+            pallete_vector.reserve(chunk_length);
+            for(int i = 0; i < chunk_length; i++)
             {
-                palleteVector.emplace_back(chunkData[i]);
+                pallete_vector.emplace_back(chunk_data[i]);
             }
-        } else if(strncmp(chunkType, "IEND", 4)==0)
+        } else if(strncmp(chunk_type, "IEND", 4)==0)
         {
-            #ifdef YANTIMINGS
-            printf("deflate started\n");
-            auto startTime = std::chrono::high_resolution_clock::now();
-            #endif
-
-            std::vector<uint8_t> imageData = yan_deflate(deflateStream);
-
-            #ifdef YANTIMINGS
-            auto timeTaken = std::chrono::high_resolution_clock::now() - startTime;
-            printf("deflate took: %i ms\n", (std::chrono::duration_cast<std::chrono::milliseconds>(timeTaken).count()));
-            #endif
-            
-            if(imageData.size()!=0)
+            std::vector<uint8_t> image_data = yan_deflate(deflate_stream);
+            if(image_data.size()!=0)
             {
-                tempData.reserve(std::ceil(tempWidth*tempHeight*valuesPerPixel/(float)valsPerByte));
+                temp_data.reserve(std::ceil(temp_width*temp_height*values_per_pixel/static_cast<float>(vals_per_byte)));
 
-                unsigned streamPos = 0;
-                uint8_t readBits = 0;
+                unsigned stream_pos = 0;
+                uint8_t read_bits = 0;
 
-                for(int y = 0; y < tempHeight; ++y)
+                for(int y = 0; y < temp_height; ++y)
                 {
-                    uint8_t filterType = imageData[streamPos++];
+                    uint8_t filter_type = image_data[stream_pos++];
 
-                    if(palleteUsed)
+                    if(pallete_used)
                     {
-                        for(int x = 0; x < tempWidth; ++x, ++streamPos)
+                        for(int x = 0; x < temp_width; ++x, ++stream_pos)
                         {
-                            unsigned palletePixel = imageData[streamPos]*3;
-                            tempData.emplace_back(palleteVector[palletePixel]);
-                            tempData.emplace_back(palleteVector[palletePixel+1]);
-                            tempData.emplace_back(palleteVector[palletePixel+2]);
+                            unsigned pallete_pixel = image_data[stream_pos]*3;
+                            temp_data.emplace_back(pallete_vector[pallete_pixel]);
+                            temp_data.emplace_back(pallete_vector[pallete_pixel+1]);
+                            temp_data.emplace_back(pallete_vector[pallete_pixel+2]);
                         }
                     } else
                     {
-                        for(int x = 0; x < tempWidth*valuesPerPixel; ++x, ++streamPos)
+                        for(int x = 0; x < temp_width*values_per_pixel; ++x, ++stream_pos)
                         {
-                            uint8_t pixelData;
+                            uint8_t pixel_data;
 
-                            switch(filterType)
+                            switch(filter_type)
                             {
                                 case 0:
-                                    pixelData = imageData[streamPos];
+                                    pixel_data = image_data[stream_pos];
                                 break;
 
                                 case 1:
                                 {
                                     if(x<bpp)
                                     {
-                                        pixelData = imageData[streamPos];
+                                        pixel_data = image_data[stream_pos];
                                     } else
                                     {
-                                        pixelData = sub_positive(imageData[streamPos], imageData[streamPos-bpp]);
-                                        imageData[streamPos] = pixelData;
+                                        pixel_data = sub_positive(image_data[stream_pos], image_data[stream_pos-bpp]);
+                                        image_data[stream_pos] = pixel_data;
                                     }
                                     break;
                                 }
@@ -837,406 +794,322 @@ bool YandereImage::png_read(bool checkChecksums)
                                 {
                                     if(y==0)
                                     {
-                                        pixelData = imageData[streamPos];
+                                        pixel_data = image_data[stream_pos];
                                     } else
                                     {
-                                        unsigned aboveIndex = streamPos-(1+(tempWidth*valuesPerPixel)/valsPerByte); //the +1 is to skip the filter type for current line
-                                        pixelData = sub_positive(imageData[streamPos], imageData[aboveIndex]);
-                                        imageData[streamPos] = pixelData;
+                                        unsigned above_index = stream_pos-(1+(temp_width*values_per_pixel)/vals_per_byte); //the +1 is to skip the filter type for current line
+                                        pixel_data = sub_positive(image_data[stream_pos], image_data[above_index]);
+                                        image_data[stream_pos] = pixel_data;
                                     }
                                     break;
                                 }
                                 case 3:
                                 {
-                                    unsigned aboveIndex = streamPos-(1+(tempWidth*valuesPerPixel)/valsPerByte);
-                                    uint8_t upPixel = y==0 ? 0 : imageData[aboveIndex];
-                                    uint8_t leftPixel = x<bpp ? 0 : imageData[streamPos-bpp];
+                                    unsigned above_index = stream_pos-(1+(temp_width*values_per_pixel)/vals_per_byte);
+                                    uint8_t up_pixel = y==0 ? 0 : image_data[above_index];
+                                    uint8_t left_pixel = x<bpp ? 0 : image_data[stream_pos-bpp];
 
-                                    uint8_t rightSidePixel = (leftPixel+upPixel)/2;
-                                    pixelData = sub_positive(imageData[streamPos], rightSidePixel);
-                                    imageData[streamPos] = pixelData;
+                                    uint8_t right_side_pixel = (left_pixel+up_pixel)/2;
+                                    pixel_data = sub_positive(image_data[stream_pos], right_side_pixel);
+                                    image_data[stream_pos] = pixel_data;
                                     break;
                                 }
                                 case 4:
                                 {
-                                    unsigned aboveIndex = streamPos-(1+(tempWidth*valuesPerPixel)/valsPerByte);
-                                    uint8_t upPixel = y==0 ? 0 : imageData[aboveIndex];
-                                    uint8_t leftPixel = x<bpp ? 0 : imageData[streamPos-bpp];
-                                    uint8_t upLeftPixel = ((y==0) | (x<bpp)) ? 0 : imageData[aboveIndex-bpp];
+                                    unsigned above_index = stream_pos-(1+(temp_width*values_per_pixel)/vals_per_byte);
+                                    uint8_t up_pixel = y==0 ? 0 : image_data[above_index];
+                                    uint8_t left_pixel = x<bpp ? 0 : image_data[stream_pos-bpp];
+                                    uint8_t up_left_pixel = ((y==0) | (x<bpp)) ? 0 : image_data[above_index-bpp];
 
-                                    uint8_t rightSidePixel;
+                                    uint8_t right_side_pixel;
 
-                                    int initialEst = leftPixel + upPixel - upLeftPixel;
-                                    int distanceLeft = std::abs(initialEst - leftPixel);
-                                    int distanceUp = std::abs(initialEst - upPixel);
-                                    int distanceUpLeft = std::abs(initialEst - upLeftPixel);
+                                    int initial_est = left_pixel + up_pixel - up_left_pixel;
+                                    int distance_left = std::abs(initial_est - left_pixel);
+                                    int distance_up = std::abs(initial_est - up_pixel);
+                                    int distance_up_left = std::abs(initial_est - up_left_pixel);
 
-                                    if((distanceLeft<=distanceUp)&&(distanceLeft<=distanceUpLeft))
+                                    if((distance_left<=distance_up)&&(distance_left<=distance_up_left))
                                     {
-                                        rightSidePixel = leftPixel;
-                                    } else if(distanceUp<=distanceUpLeft)
+                                        right_side_pixel = left_pixel;
+                                    } else if(distance_up<=distance_up_left)
                                     {
-                                        rightSidePixel = upPixel;
+                                        right_side_pixel = up_pixel;
                                     } else
                                     {
-                                        rightSidePixel = upLeftPixel;
+                                        right_side_pixel = up_left_pixel;
                                     }
 
-                                    pixelData = sub_positive(imageData[streamPos], rightSidePixel);
-                                    imageData[streamPos] = pixelData;
+                                    pixel_data = sub_positive(image_data[stream_pos], right_side_pixel);
+                                    image_data[stream_pos] = pixel_data;
                                     break;
                                 }
                             }
 
-                            tempData.emplace_back(pixelData);
+                            temp_data.emplace_back(pixel_data);
                         }
                     }
                 }
             }
             
 
-            image = tempData;
-            width = tempWidth;
-            height = tempHeight;
+            image = temp_data;
+            width = temp_width;
+            height = temp_height;
 
-            free(chunkData);
+            free(chunk_data);
             break;
         }/* else
         {
-            char newChunk[5] = {chunkType[0], chunkType[1], chunkType[2], chunkType[3], '\0'};
+            char newChunk[5] = {chunk_type[0], chunk_type[1], chunk_type[2], chunk_type[3], '\0'};
             printf("%s\n", newChunk);
         }*/
 
-        free(chunkData);
+        free(chunk_data);
     }
 
-    inputStream.close();
+    input_stream.close();
 
     return true;
 }
 
-std::vector<uint8_t> YandereImage::yan_inflate(std::vector<uint8_t>& inputData)
+std::vector<uint8_t> yandere_image::yan_inflate(std::vector<uint8_t>& input_data)
 {
-	std::vector<uint8_t> inflatedData;
+	std::vector<uint8_t> inflated_data;
 	
-	uint8_t compressionMethod = 8; //the only one that exists atm
-	uint8_t compressionInfo = 7; //max window size, not even gonna try calculating it properly
+	uint8_t compression_method = 8; //the only one that exists atm
+	uint8_t compression_info = 7; //max window size, not even gonna try calculating it properly
 	
-	uint8_t cmfData = (compressionInfo<<4)|(compressionMethod&0x0f);
-	inflatedData.push_back(cmfData);
+	uint8_t cmf_data = (compression_info<<4)|(compression_method&0x0f);
+	inflated_data.push_back(cmf_data);
 	
-	uint8_t checkVal = 0; //has to be that (cmfData*256 + flgData) % 31 == 0
-	uint8_t dictSet = 0; //i dont know how enabling it helps me in any way
-	uint8_t compressionLevel = 0; //i clearly used the least compressed one there is because its made by me
+	uint8_t check_val = 0; //has to be that (cmf_data*256 + flg_data) % 31 == 0
+	uint8_t dict_set = 0; //i dont know how enabling it helps me in any way
+	uint8_t compression_level = 0; //i clearly used the least compressed one there is because its made by me
 	
-	uint8_t flgData = ((compressionLevel&0x3)<<6)|((dictSet&0x1)<<5)|(checkVal&0x1f);
+	uint8_t flg_data = ((compression_level&0x3)<<6)|((dict_set&0x1)<<5)|(check_val&0x1f);
 	
-	uint8_t crcRemainder = (static_cast<int>(cmfData)*256+static_cast<int>(flgData))%31;
+	uint8_t crc_remainder = (static_cast<int>(cmf_data)*256+static_cast<int>(flg_data))%31;
 	//make it mod 31 == 0
-	if(crcRemainder!=0)
+	if(crc_remainder!=0)
 	{
-		flgData |= (31-crcRemainder)&0x1f;
+		flg_data |= (31-crc_remainder)&0x1f;
 	}
-	inflatedData.push_back(flgData);
+	inflated_data.push_back(flg_data);
 	
-	int inputDataSize = inputData.size();
-	bool lastBlock = false;
+	int input_data_size = input_data.size();
+	bool last_block = false;
 	
-	bool lastFound = false;
-	std::vector<uint8_t>::iterator lastFoundIter;
-	std::vector<uint8_t> searchVec;
+	bool last_found = false;
+	std::vector<uint8_t>::iterator last_found_iter;
+	std::vector<uint8_t> search_vec;
 	
-	std::vector<uint8_t>::iterator foundIter;
+	std::vector<uint8_t>::iterator found_iter;
 	
-	int maxDistance = 32768;
-	auto firstIter = inflatedData.end();
+	const int max_distance = 32768;
+	auto first_iter = inflated_data.end();
 	
-	int lastInflatedDataSize = 0;
+	int last_inflated_data_size = 0;
 	
 	//this is really unreadable, soz
-	uint8_t bitOffset = 0;
-	for(int i = 0; !lastBlock;)
+	uint8_t bit_offset = 0;
+	for(int i = 0; !last_block;)
 	{	
 		//0 = no compression
 		//1 = static huffman tree
 		//2 = dynamic huffman tree
-		uint8_t encodingMethod = 0;
+		uint8_t encoding_method = 0;
 		
-		int blockSize = 0xff;
-		switch(encodingMethod)
+		int block_size = 0xff;
+		switch(encoding_method)
 		{
 			case 0:
 			{
-				blockSize = 0xff; //maximum size for uncompressed data block
+				block_size = 0xff; //maximum size for uncompressed data block
 			break;
 			}
 			case 1:
 			{
-				blockSize = inputDataSize-i; //just encode all of it idk
+				block_size = input_data_size-i; //just encode all of it idk
 			break;
 			}
 		}
 		
-		int nextBlockEdge = i+blockSize;
-		if(nextBlockEdge >= inputDataSize)
+		int next_block_edge = i+block_size;
+		if(next_block_edge >= input_data_size)
 		{
-			lastBlock = true;
+			last_block = true;
 		}
-		int maxBound = std::min(nextBlockEdge, inputDataSize);
+		int max_bound = std::min(next_block_edge, input_data_size);
 		
-		uint8_t bitInfo = ((encodingMethod&0x3)<<1)|(static_cast<uint8_t>(lastBlock));
+		uint8_t bit_info = ((encoding_method&0x3)<<1)|(static_cast<uint8_t>(last_block));
 		
-		switch(encodingMethod)
+		switch(encoding_method)
 		{
 			case 0:
 			{	
-				inflatedData.push_back(bitInfo);
+				inflated_data.push_back(bit_info);
 			
 				//block length
-				inflatedData.push_back(blockSize&0xff);
-				inflatedData.push_back((blockSize&0xff00)>>8);
+				inflated_data.push_back(block_size&0xff);
+				inflated_data.push_back((block_size&0xff00)>>8);
 				
 				//ones complement of block length
-				inflatedData.push_back((blockSize&0xff)^0xff);
-				inflatedData.push_back(((blockSize&0xff00)>>8)^0xff);
+				inflated_data.push_back((block_size&0xff)^0xff);
+				inflated_data.push_back(((block_size&0xff00)>>8)^0xff);
 				
-				inflatedData.reserve(blockSize);
+				inflated_data.reserve(block_size);
 				
-				for(; i < maxBound; ++i)
+				for(; i < max_bound; ++i)
 				{		
-					inflatedData.emplace_back(inputData[i]);
+					inflated_data.emplace_back(input_data[i]);
 				}
 			break;
 			}
 			case 1:
 			{
-				uint32_t bitBuffer = 0;
-			
-				auto reverseBits = [](uint16_t bitsToRev, uint8_t amount)->uint16_t { uint16_t reversedBits = bitsToRev; for(uint8_t i = 0; i < (amount-1); ++i) { reversedBits <<= 1; bitsToRev >>= 1; reversedBits |= bitsToRev&0x1; }; reversedBits &= ((1<<amount)-1); return reversedBits; };
-				auto checkOffsets = [&bitOffset, &bitBuffer, &inflatedData]() mutable { if(bitOffset>15) { inflatedData.push_back(bitBuffer&0xff); inflatedData.push_back((bitBuffer&0xff00)>>8); bitBuffer >>= 16; bitOffset -= 16; } };
-				auto pushBits = [&bitOffset, &bitBuffer, &checkOffsets](uint16_t bitsToPush, uint8_t amount) mutable { bitBuffer |= (bitsToPush<<bitOffset); bitOffset += amount; checkOffsets(); };
-				auto pushBitsReverse = [&pushBits, &reverseBits](uint16_t bitsToPush, uint8_t amount) { pushBits(reverseBits(bitsToPush, amount), amount); };
-				
-				pushBits(bitInfo, 3);
-				
-				lastInflatedDataSize = inflatedData.size();
-			
-				for(; i < maxBound; ++i)
-				{
-					uint16_t currentByte = inputData[i];
-					
-					if(inflatedData.size() > lastInflatedDataSize)
-					{
-						lastInflatedDataSize = inflatedData.size();
-						
-						auto lastIter = inflatedData.end();
-						if(std::distance(firstIter, lastIter)>maxDistance)
-						{
-							firstIter = inflatedData.end() - maxDistance;
-						}
-					
-						if(!lastFound)
-						{
-							foundIter = std::find(firstIter, lastIter, *(inflatedData.end()-1));
-							if(foundIter != lastIter)
-							{
-								//found a repeating symbol, search for a sequence
-								searchVec.push_back(*(inflatedData.end()-1));
-								lastFound = true;
-								lastFoundIter = foundIter;
-							}
-						} else
-						{
-							searchVec.push_back(*(inflatedData.end()-1));
-							foundIter = std::search(lastFoundIter, lastIter, searchVec.begin(), searchVec.end());
-							if(foundIter != lastIter)
-							{
-								//check if the repeating symbol list is greater than the max length
-								if(std::distance(foundIter, lastIter)==258)
-								{
-									//replace the symbols with distance/length pair
-									printf("yes\n");
-								} else
-								{
-									searchVec.push_back(*(inflatedData.end()-1));
-									lastFoundIter = foundIter;
-								}
-							} else
-							{
-								if(searchVec.size()>2)
-								{
-									//found a repeating symbol sequence bigger than 2 symbols, replace with distance/length pair
-									//printf("true\n");
-								}
-								lastFound = false;
-							}
-						}
-					}
-					
-					//insert the bits
-					if(currentByte<144)
-					{
-						pushBitsReverse((currentByte+0x30), 8);
-					} else
-					{
-						pushBitsReverse((currentByte+0x100), 9);
-					}
-
-				}
-				
-				if(bitOffset>8)
-				{
-					inflatedData.push_back((bitBuffer&0xff00)>>8);
-				}
-				inflatedData.push_back(bitBuffer&0xff);
-				
-				pushBits(0, 7);
-				if(lastBlock)
-				{
-					inflatedData.shrink_to_fit();
-				}
-			break;
+				//todo (never)
 			}
+			break;
 		}
 	}
 	
-	int adlerSum1 = 1;
-	int adlerSum2 = 0;
+	int adler_sum1 = 1;
+	int adler_sum2 = 0;
 			
 	//how inefficient ;-;
 	//dont care
-	for(int s = 0; s < inputDataSize; ++s)
+	for(int s = 0; s < input_data_size; ++s)
 	{
-		adlerSum1 += (inputData[s] % 65521);
-		adlerSum2 += (adlerSum1 % 65521);
+		adler_sum1 += (input_data[s] % 65521);
+		adler_sum2 += (adler_sum1 % 65521);
 	}
 			
-	inflatedData.push_back((adlerSum2&0xff00)>>8);
-	inflatedData.push_back(adlerSum2&0xff);
+	inflated_data.push_back((adler_sum2&0xff00)>>8);
+	inflated_data.push_back(adler_sum2&0xff);
 			
-	inflatedData.push_back((adlerSum1&0xff00)>>8);
-	inflatedData.push_back(adlerSum1&0xff);
+	inflated_data.push_back((adler_sum1&0xff00)>>8);
+	inflated_data.push_back(adler_sum1&0xff);
 
-	return std::move(inflatedData);
+	return std::move(inflated_data);
 }
 
-std::vector<uint32_t> YandereImage::crc_table_gen()
+std::vector<uint32_t> yandere_image::crc_table_gen()
 {
-	std::vector<uint32_t> crcTable;
-	crcTable.reserve(256);
+	std::vector<uint32_t> crc_table;
+	crc_table.reserve(256);
 
 	for(int i = 0; i < 256; ++i)
 	{
-		uint32_t tableNum = static_cast<uint32_t>(i);
+		uint32_t table_num = static_cast<uint32_t>(i);
 		
 		for(int l = 0; l < 8; ++l)
 		{
-			if(tableNum&0x1)
+			if(table_num&0x1)
 			{
-				tableNum = 0xedb88320^(tableNum>>1);
+				table_num = 0xedb88320^(table_num>>1);
 			} else
 			{
-				tableNum >>= 1;
+				table_num >>= 1;
 			}
 		}
 		
-		crcTable.emplace_back(tableNum);
+		crc_table.emplace_back(table_num);
 	}
 	
-	return crcTable;
+	return crc_table;
 }
 
-void YandereImage::png_save(std::string savePath)
+void yandere_image::png_save(std::string save_path)
 {
-    std::ofstream outStream(savePath, std::ios::binary);
+    std::ofstream out_stream(save_path, std::ios::binary);
 
-    std::vector<char> imageHeader;
+    std::vector<char> image_header;
     //magic numbers for png
-    imageHeader.push_back(0x89);
+    image_header.push_back(0x89);
     
     //PNG in ascii
-    imageHeader.push_back('P');
-    imageHeader.push_back('N');
-    imageHeader.push_back('G');
+    image_header.push_back('P');
+    image_header.push_back('N');
+    image_header.push_back('G');
 
     //line ending
-    imageHeader.push_back(0x0d);
-    imageHeader.push_back(0x0a);
+    image_header.push_back(0x0d);
+    image_header.push_back(0x0a);
     
-    imageHeader.push_back(0x1a);
-    imageHeader.push_back(0x0a);
+    image_header.push_back(0x1a);
+    image_header.push_back(0x0a);
     
 
-    outStream.write(imageHeader.data(), imageHeader.size());
+    out_stream.write(image_header.data(), image_header.size());
 
-    std::string widthString = std::to_string(width);
-    imageHeader.insert(imageHeader.end(), widthString.begin(), widthString.end());
+    std::string width_string = std::to_string(width);
+    image_header.insert(image_header.end(), width_string.begin(), width_string.end());
 
-    std::string heightString = std::to_string(height);
-    imageHeader.insert(imageHeader.end(), heightString.begin(), heightString.end());
-    int imageSize = image.size();
+    std::string height_string = std::to_string(height);
+    image_header.insert(image_header.end(), height_string.begin(), height_string.end());
+    int image_size = image.size();
 
-	std::vector<std::array<char,4>> encodeChunks;
-	encodeChunks.push_back({'I', 'H', 'D', 'R'});
-	encodeChunks.push_back({'I', 'D', 'A', 'T'});
-	encodeChunks.push_back({'I', 'E', 'N', 'D'});
+	std::vector<std::array<char,4>> encode_chunks;
+	encode_chunks.push_back({'I', 'H', 'D', 'R'});
+	encode_chunks.push_back({'I', 'D', 'A', 'T'});
+	encode_chunks.push_back({'I', 'E', 'N', 'D'});
 	
-	int chunksAmount = encodeChunks.size();
+	int chunks_amount = encode_chunks.size();
 	
-	for(int i = 0; i < chunksAmount; ++i)
+	for(int i = 0; i < chunks_amount; ++i)
 	{
-		std::vector<char> dataChunk;
+		std::vector<char> data_chunk;
 		
-		std::string chunkName = "";
-		uint32_t chunkLength = 0;
+		std::string chunk_name = "";
+		uint32_t chunk_length = 0;
 		
-		dataChunk.reserve(4);
-		for(int eN = 0; eN < 4; ++eN)
+		data_chunk.reserve(4);
+		for(int en = 0; en < 4; ++en)
 		{
-			dataChunk.emplace_back(encodeChunks[i][eN]);
-			chunkName += encodeChunks[i][eN];
+			data_chunk.emplace_back(encode_chunks[i][en]);
+			chunk_name += encode_chunks[i][en];
 		}
 		
-		if(chunkName=="IDAT")
+		if(chunk_name=="IDAT")
 		{
-			std::vector<uint8_t> imageBytes;
-			imageBytes.reserve(height*width*bpp+height);
+			std::vector<uint8_t> image_bytes;
+			image_bytes.reserve(height*width*bpp+height);
 			
 			for(int y = 0; y < height; ++y)
 			{
-				uint8_t lineFilter = 0;
-				imageBytes.emplace_back(lineFilter);
+				uint8_t line_filter = 0;
+				image_bytes.emplace_back(line_filter);
 			
 				for(int x = 0; x < width; ++x)
 				{
 					for(int bppi = 0; bppi < bpp; ++bppi)
 					{
-						imageBytes.emplace_back(image[y*width*bpp+x*bpp+bppi]);
+						image_bytes.emplace_back(image[y*width*bpp+x*bpp+bppi]);
 					}
 				}
 			}
 			
-			std::vector<uint8_t> inflatedBytes = yan_inflate(imageBytes);
+			std::vector<uint8_t> inflated_bytes = yan_inflate(image_bytes);
 			
-			dataChunk.insert(dataChunk.end(), inflatedBytes.begin(), inflatedBytes.end()); //no point trying to do this efficiently, have to convert from uint8_t to char
+			data_chunk.insert(data_chunk.end(), inflated_bytes.begin(), inflated_bytes.end()); //no point trying to do this efficiently, have to convert from uint8_t to char
 			
-			chunkLength = inflatedBytes.size();
-		} else if(chunkName=="IHDR")
+			chunk_length = inflated_bytes.size();
+		} else if(chunk_name=="IHDR")
 		{
 			//4 bytes of width
-			dataChunk.push_back((width&0xff000000)>>24);
-			dataChunk.push_back((width&0xff0000)>>16);
-			dataChunk.push_back((width&0xff00)>>8);
-			dataChunk.push_back(width&0xff);
+			data_chunk.push_back((width&0xff000000)>>24);
+			data_chunk.push_back((width&0xff0000)>>16);
+			data_chunk.push_back((width&0xff00)>>8);
+			data_chunk.push_back(width&0xff);
 			
 			//4 bytes of height
-			dataChunk.push_back((height&0xff000000)>>24);
-			dataChunk.push_back((height&0xff0000)>>16);
-			dataChunk.push_back((height&0xff00)>>8);
-			dataChunk.push_back(height&0xff);
+			data_chunk.push_back((height&0xff000000)>>24);
+			data_chunk.push_back((height&0xff0000)>>16);
+			data_chunk.push_back((height&0xff00)>>8);
+			data_chunk.push_back(height&0xff);
 			
 			//bits per pixel, always 8 (bla bla bla not efficient)
-			dataChunk.push_back(8);
+			data_chunk.push_back(8);
 			
 			//color type
 			//0100 bit adds alpha
@@ -1245,218 +1118,218 @@ void YandereImage::png_save(std::string savePath)
 			if(bpp==1)
 			{
 				//grayscale
-				dataChunk.push_back(0);
+				data_chunk.push_back(0);
 			} else if(bpp==2)
 			{
 				//grayscale with alpha
-				dataChunk.push_back(4);
+				data_chunk.push_back(4);
 			} else if(bpp==3)
 			{
 				//fullcolor
-				dataChunk.push_back(2);
+				data_chunk.push_back(2);
 			} else if(bpp==4)
 			{
 				//fullcolor with alpha
-				dataChunk.push_back(6);
+				data_chunk.push_back(6);
 			} else
 			{
 				return;
 			}
 			
 			//stuff that doesnt change, like png using deflate algorithm for compression
-			dataChunk.push_back(0);
-			dataChunk.push_back(0);
+			data_chunk.push_back(0);
+			data_chunk.push_back(0);
 			
 			//interlacing off
-			dataChunk.push_back(0);
+			data_chunk.push_back(0);
 			
-			chunkLength = 13;
+			chunk_length = 13;
 		}
 		
 		//crc stuff
-		std::vector<uint32_t> crcTable = crc_table_gen();
+		std::vector<uint32_t> crc_table = crc_table_gen();
 		
-		uint32_t chunkCRC = 0xffffffff;
+		uint32_t chunk_crc = 0xffffffff;
 		
-		int crcLength = chunkLength + 4; //4 letters of the chunk name
+		int crc_length = chunk_length + 4; //4 letters of the chunk name
 		
-		for(int b = 0; b < crcLength; ++b)
+		for(int b = 0; b < crc_length; ++b)
 		{
-			chunkCRC = (crcTable[(chunkCRC^dataChunk[b])&0xff]^(chunkCRC>>8));
+			chunk_crc = (crc_table[(chunk_crc^data_chunk[b])&0xff]^(chunk_crc>>8));
 		}
 		
-		chunkCRC ^= 0xffffffff;
+		chunk_crc ^= 0xffffffff;
 		//crc stuff over
 		
-		dataChunk.insert(dataChunk.begin(), chunkLength&0xff);
-		dataChunk.insert(dataChunk.begin(), (chunkLength&0xff00)>>8);
-		dataChunk.insert(dataChunk.begin(), (chunkLength&0xff0000)>>16);
-		dataChunk.insert(dataChunk.begin(), (chunkLength&0xff000000)>>24);
+		data_chunk.insert(data_chunk.begin(), chunk_length&0xff);
+		data_chunk.insert(data_chunk.begin(), (chunk_length&0xff00)>>8);
+		data_chunk.insert(data_chunk.begin(), (chunk_length&0xff0000)>>16);
+		data_chunk.insert(data_chunk.begin(), (chunk_length&0xff000000)>>24);
 		
 		
-		dataChunk.push_back((chunkCRC&0xff000000)>>24);
-		dataChunk.push_back((chunkCRC&0xff0000)>>16);
-		dataChunk.push_back((chunkCRC&0xff00)>>8);
-		dataChunk.push_back(chunkCRC&0xff);
+		data_chunk.push_back((chunk_crc&0xff000000)>>24);
+		data_chunk.push_back((chunk_crc&0xff0000)>>16);
+		data_chunk.push_back((chunk_crc&0xff00)>>8);
+		data_chunk.push_back(chunk_crc&0xff);
 
-		outStream.write(dataChunk.data(), dataChunk.size());
+		out_stream.write(data_chunk.data(), data_chunk.size());
     }
 
-    outStream.close();
+    out_stream.close();
 }
 
-bool YandereImage::pgm_read()
+bool yandere_image::pgm_read()
 {
     //im not parsing comments because NO
-    std::ifstream readStream(_imagePath, std::ios::binary);
+    std::ifstream read_stream(_image_path, std::ios::binary);
 
-    char dataType[2];
-    readStream >> dataType;
+    char data_type[2];
+    read_stream >> data_type;
 
-    if(strncmp(dataType, "P2", 2)==0||strncmp(dataType, "P5", 2)==0)
+    if(strncmp(data_type, "P2", 2)==0||strncmp(data_type, "P5", 2)==0)
     {
-        std::string widthString;
-        readStream >> widthString;
-        width = std::stoul(widthString);
+        std::string width_string;
+        read_stream >> width_string;
+        width = std::stoul(width_string);
 
-        std::string heightString;
-        readStream >> heightString;
-        height = std::stoul(heightString);
+        std::string height_string;
+        read_stream >> height_string;
+        height = std::stoul(height_string);
 
-        int imageSize = width*height;
+        int image_size = width*height;
         image.reserve(width*height);
 
-        std::string maxvalString;
-        readStream >> maxvalString;
-        float maxVal = std::stof(maxvalString);
+        std::string max_val_string;
+        read_stream >> max_val_string;
+        float max_val = std::stof(max_val_string);
 
-        if(strncmp(dataType, "P2", 2)==0)
+        if(strncmp(data_type, "P2", 2)==0)
         {
             //ascii
-            for(int i = 0; i < imageSize; ++i)
+            for(int i = 0; i < image_size; ++i)
             {
-                std::string colorString;
-                readStream >> colorString;
+                std::string color_string;
+                read_stream >> color_string;
 
-                image.emplace_back(std::round(255*(std::stoi(colorString)/maxVal)));
+                image.emplace_back(std::round(255*(std::stoi(color_string)/max_val)));
             }
         } else
         {
             //binary
-            char colorByte = 0;
-            for(int i = 0; i < imageSize; ++i)
+            char color_byte = 0;
+            for(int i = 0; i < image_size; ++i)
             {
-                readStream.get(colorByte);
+                read_stream.get(color_byte);
 
-                image.emplace_back(std::round(255*(colorByte/maxVal)));
+                image.emplace_back(std::round(255*(color_byte/max_val)));
             }
         }
     } else
     {
 
-        readStream.close();
+        read_stream.close();
         return false;
     }
 
     bpp = 1;
 
-    readStream.close();
+    read_stream.close();
     return true;
 }
 
-void YandereImage::pgm_save(std::string savePath)
+void yandere_image::pgm_save(std::string save_path)
 {
     if(bpp!=1)
     {
         return;
     }
 
-    std::ofstream outStream(savePath, std::ios::binary);
+    std::ofstream out_stream(save_path, std::ios::binary);
 
-    std::vector<char> imageHeader;
+    std::vector<char> image_header;
     //magic number for the binary grayscale format
-    imageHeader.push_back('P');
-    imageHeader.push_back('5');
+    image_header.push_back('P');
+    image_header.push_back('5');
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    std::string widthString = std::to_string(width);
-    imageHeader.insert(imageHeader.end(), widthString.begin(), widthString.end());
+    std::string width_string = std::to_string(width);
+    image_header.insert(image_header.end(), width_string.begin(), width_string.end());
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    std::string heightString = std::to_string(height);
-    imageHeader.insert(imageHeader.end(), heightString.begin(), heightString.end());
+    std::string height_string = std::to_string(height);
+    image_header.insert(image_header.end(), height_string.begin(), height_string.end());
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
     //max value for a color which is 255
-    imageHeader.push_back('2');
-    imageHeader.push_back('5');
-    imageHeader.push_back('5');
+    image_header.push_back('2');
+    image_header.push_back('5');
+    image_header.push_back('5');
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    outStream.write(imageHeader.data(), imageHeader.size());
+    out_stream.write(image_header.data(), image_header.size());
 
 
-    int imageSize = image.size();
+    int image_size = image.size();
 
-    std::vector<char> imageData;
+    std::vector<char> image_data;
     //each color value is separated by a whitespace (therefore twice the bytes)
-    imageData.reserve(imageSize);
+    image_data.reserve(image_size);
 
-    for(int i = 0; i < imageSize; ++i)
+    for(int i = 0; i < image_size; ++i)
     {
-        imageData.emplace_back(static_cast<char>(image[i]));
+        image_data.emplace_back(static_cast<char>(image[i]));
     }
 
-    outStream.write(imageData.data(), imageData.size());
+    out_stream.write(image_data.data(), image_data.size());
 
-    outStream.close();
+    out_stream.close();
 }
 
-void YandereImage::ppm_save(std::string savePath)
+void yandere_image::ppm_save(std::string save_path)
 {
     if(bpp!=3)
     {
         return;
     }
 
-    std::ofstream outStream(savePath, std::ios::binary);
+    std::ofstream out_stream(save_path, std::ios::binary);
 
-    std::vector<char> imageHeader;
+    std::vector<char> image_header;
     //magic number for the binary rgb format
-    imageHeader.push_back('P');
-    imageHeader.push_back('6');
+    image_header.push_back('P');
+    image_header.push_back('6');
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    std::string widthString = std::to_string(width);
-    imageHeader.insert(imageHeader.end(), widthString.begin(), widthString.end());
+    std::string width_string = std::to_string(width);
+    image_header.insert(image_header.end(), width_string.begin(), width_string.end());
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    std::string heightString = std::to_string(height);
-    imageHeader.insert(imageHeader.end(), heightString.begin(), heightString.end());
+    std::string height_string = std::to_string(height);
+    image_header.insert(image_header.end(), height_string.begin(), height_string.end());
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
     //max value for a color which is 255
-    imageHeader.push_back('2');
-    imageHeader.push_back('5');
-    imageHeader.push_back('5');
+    image_header.push_back('2');
+    image_header.push_back('5');
+    image_header.push_back('5');
 
-    imageHeader.push_back('\n');
+    image_header.push_back('\n');
 
-    outStream.write(imageHeader.data(), imageHeader.size());
+    out_stream.write(image_header.data(), image_header.size());
 
 
-    int imageSize = image.size();
+    int image_size = image.size();
 
-    std::vector<char> imageData;
+    std::vector<char> image_data;
     //each color value is separated by a whitespace (therefore twice the bytes)
-    imageData.reserve(imageSize);
+    image_data.reserve(image_size);
 
 	for(int y = 0; y < height; ++y)
 	{
@@ -1464,151 +1337,151 @@ void YandereImage::ppm_save(std::string savePath)
     	{
     		for(uint8_t bppi = 0; bppi < bpp; ++bppi)
     		{
-        		imageData.emplace_back(static_cast<char>(image[y*width*bpp+x*bpp+bppi]));
+        		image_data.emplace_back(static_cast<char>(image[y*width*bpp+x*bpp+bppi]));
         	}
     	}
     }
 
-    outStream.write(imageData.data(), imageData.size());
+    out_stream.write(image_data.data(), image_data.size());
 
-    outStream.close();
+    out_stream.close();
 }
 
-void YandereImage::grayscale()
+void yandere_image::grayscale()
 {
     if(bpp==1)
     {
         return;
     }
 
-    std::vector<uint8_t> grayscaleImage;
-    grayscaleImage.reserve(width*height);
+    std::vector<uint8_t> grayscale_image;
+    grayscale_image.reserve(width*height);
 
     for(unsigned y = 0; y<height; ++y)
     {
         for(unsigned x = 0; x<width; ++x)
         {
-            unsigned avgPixel = 0;
+            unsigned avg_pixel = 0;
 
             for(uint8_t bppi = 0; bppi < bpp; ++bppi)
             {
-                avgPixel += image[y*width*bpp+x*bpp+bppi];
+                avg_pixel += image[y*width*bpp+x*bpp+bppi];
             }
-            avgPixel /= bpp;
-            grayscaleImage.emplace_back(avgPixel);
+            avg_pixel /= bpp;
+            grayscale_image.emplace_back(avg_pixel);
         }
     }
 
     bpp = 1;
-    image = std::move(grayscaleImage);
+    image = std::move(grayscale_image);
 }
 
-void YandereImage::bpp_resize(uint8_t desiredBpp, uint8_t extraChannel)
+void yandere_image::bpp_resize(uint8_t set_bpp, uint8_t extra_channel)
 {
-    if(bpp==desiredBpp)
+    if(bpp==set_bpp)
     {
         return;
     }
 
-    std::vector<uint8_t> recoloredImage;
-    recoloredImage.reserve(width*height*desiredBpp);
+    std::vector<uint8_t> recolored_image;
+    recolored_image.reserve(width*height*set_bpp);
 
     for(unsigned y = 0; y<height; ++y)
     {
         for(unsigned x = 0; x<width; ++x)
         {
-            for(uint8_t bppi = 0; bppi<desiredBpp; ++bppi)
+            for(uint8_t bppi = 0; bppi<set_bpp; ++bppi)
             {
                 if(bppi<bpp)
                 {
-                    recoloredImage.emplace_back(image[y*width*bpp+x*bpp+bppi]);
+                    recolored_image.emplace_back(image[y*width*bpp+x*bpp+bppi]);
                 } else
                 {
-                    recoloredImage.emplace_back(extraChannel);
+                    recolored_image.emplace_back(extra_channel);
                 }
             }
         }
     }
 
-    bpp = desiredBpp;
-    image = std::move(recoloredImage);
+    bpp = set_bpp;
+    image = std::move(recolored_image);
 }
 
-void YandereImage::resize(unsigned desiredWidth, unsigned desiredHeight, ResizeType resizeType)
+void yandere_image::resize(unsigned set_width, unsigned set_height, resize_type type)
 {
-    if(desiredWidth==width&&desiredHeight==height)
+    if(set_width==width&&set_height==height)
     {
         return;
     }
 
-    std::vector<uint8_t> resizedImage;
-    resizedImage.reserve(desiredWidth*desiredHeight*bpp);
+    std::vector<uint8_t> resized_image;
+    resized_image.reserve(set_width*set_height*bpp);
 
-    float resizeRatioWidth = static_cast<float>(desiredWidth)/width;
-    float resizeRatioHeight = static_cast<float>(desiredHeight)/height;
+    float resize_ratio_width = static_cast<float>(set_width)/width;
+    float resize_ratio_height = static_cast<float>(set_height)/height;
 
-    float currentPixelWidth = 1/resizeRatioWidth;
-    float currentPixelHeight = 1/resizeRatioHeight;
+    float current_pixel_width = 1/resize_ratio_width;
+    float current_pixel_height = 1/resize_ratio_height;
 
-    float currentPixelWidthHalf = currentPixelWidth/2.0f;
-    float currentPixelHeightHalf = currentPixelHeight/2.0f;
+    float current_pixel_widthHalf = current_pixel_width/2.0f;
+    float current_pixel_heightHalf = current_pixel_height/2.0f;
 
-    float pixelArea = resizeRatioWidth*resizeRatioHeight;
+    float pixel_area = resize_ratio_width*resize_ratio_height;
 
-    std::vector<uint8_t> resPixel(bpp);
-    std::vector<unsigned> avgPixel(bpp);
+    std::vector<uint8_t> res_pixel(bpp);
+    std::vector<unsigned> avg_pixel(bpp);
 
-    for(unsigned y = 0; y < desiredHeight; ++y)
+    for(unsigned y = 0; y < set_height; ++y)
     {
-        for(unsigned x = 0; x < desiredWidth; ++x)
+        for(unsigned x = 0; x < set_width; ++x)
         {
-            switch(resizeType)
+            switch(type)
             {
-                case ResizeType::nearest_neighbor:
+                case resize_type::nearest_neighbor:
                 {
-                    float ratioX = x/static_cast<float>(desiredWidth);
-                    float ratioY = y/static_cast<float>(desiredHeight);
+                    float ratio_x = x/static_cast<float>(set_width);
+                    float ratio_y = y/static_cast<float>(set_height);
 
-                    float calcX = std::round(width*ratioX);
-                    float calcY = std::round(height*ratioY);
+                    float calc_x = std::round(width*ratio_x);
+                    float calc_y = std::round(height*ratio_y);
 
-                    unsigned pixelStartIndex = calcY*width*bpp+calcX*bpp;
+                    unsigned pixel_start_index = calc_y*width*bpp+calc_x*bpp;
                     for(uint8_t bppi = 0; bppi < bpp; ++bppi)
                     {
-                        resPixel[bppi] = image[pixelStartIndex+bppi];
+                        res_pixel[bppi] = image[pixel_start_index+bppi];
                     }
 
                     break;
                 }
 
-                case ResizeType::area_sample:
+                case resize_type::area_sample:
                 {
-                    float leftBorder = (x/resizeRatioWidth-currentPixelWidthHalf);
-                    leftBorder = leftBorder < 0 ? 0 : leftBorder;
+                    float left_border = (x/resize_ratio_width-current_pixel_widthHalf);
+                    left_border = left_border < 0 ? 0 : left_border;
 
-                    float topBorder = (y/resizeRatioHeight-currentPixelHeightHalf);
-                    topBorder = topBorder < 0 ? 0 : topBorder;
+                    float top_border = (y/resize_ratio_height-current_pixel_heightHalf);
+                    top_border = top_border < 0 ? 0 : top_border;
 
-                    float rightBorder = (x/resizeRatioWidth+currentPixelWidthHalf);
-                    rightBorder = rightBorder > width ? width : rightBorder;
+                    float right_border = (x/resize_ratio_width+current_pixel_widthHalf);
+                    right_border = right_border > width ? width : right_border;
 
-                    float bottomBorder = (y/resizeRatioHeight+currentPixelHeightHalf);
-                    bottomBorder = bottomBorder > height ? height : bottomBorder;
+                    float bottom_border = (y/resize_ratio_height+current_pixel_heightHalf);
+                    bottom_border = bottom_border > height ? height : bottom_border;
 
-                    unsigned lowestX = static_cast<unsigned>(leftBorder);
-                    unsigned lowestY = static_cast<unsigned>(topBorder);
-                    unsigned highestX = std::ceil(rightBorder);
-                    unsigned highestY = std::ceil(bottomBorder);
+                    unsigned lowest_x = static_cast<unsigned>(left_border);
+                    unsigned lowest_y = static_cast<unsigned>(top_border);
+                    unsigned highest_x = std::ceil(right_border);
+                    unsigned highest_y = std::ceil(bottom_border);
 
-                    float pixelsAvgd = 0;
+                    float pixels_avgd = 0;
 
-                    for(unsigned oy = lowestY; oy < highestY; ++oy)
+                    for(unsigned oy = lowest_y; oy < highest_y; ++oy)
                     {
-                        for(unsigned ox = lowestX; ox < highestX; ++ox)
+                        for(unsigned ox = lowest_x; ox < highest_x; ++ox)
                         {
                             float pixelInsideAreaRatio;
 
-                            if(oy!=lowestY&&ox!=lowestX&&oy!=(highestY-1)&&ox!=(highestX-1))
+                            if(oy!=lowest_y&&ox!=lowest_x&&oy!=(highest_y-1)&&ox!=(highest_x-1))
                             {
                                 //pixel fully inside the area
                                 pixelInsideAreaRatio = 1;
@@ -1616,62 +1489,62 @@ void YandereImage::resize(unsigned desiredWidth, unsigned desiredHeight, ResizeT
                             {
                                 //pixel partially outside the area
 
-                                float xScaled = x/resizeRatioWidth;
-                                float yScaled = y/resizeRatioHeight;
+                                float scaled_x = x/resize_ratio_width;
+                                float scaled_y = y/resize_ratio_height;
 
-                                float overlapWidth;
-                                float overlapHeight;
+                                float overlap_width;
+                                float overlap_height;
 
-                                if(ox!=lowestX&&ox!=(highestX-1))
+                                if(ox!=lowest_x&&ox!=(highest_x-1))
                                 {
-                                    if(xScaled<=ox)
+                                    if(scaled_x<=ox)
                                     {
-                                        overlapWidth = xScaled+currentPixelWidthHalf-ox;
-                                        overlapWidth = overlapWidth>1?1:overlapWidth;
+                                        overlap_width = scaled_x+current_pixel_widthHalf-ox;
+                                        overlap_width = overlap_width>1?1:overlap_width;
                                     } else
                                     {
-                                        overlapWidth = xScaled-(ox+1);
-                                        overlapWidth = overlapWidth>1?1:overlapWidth;
+                                        overlap_width = scaled_x-(ox+1);
+                                        overlap_width = overlap_width>1?1:overlap_width;
                                     }
                                 } else
                                 {
                                     //this is just for a speedup
-                                    overlapWidth = 1;
+                                    overlap_width = 1;
                                 }
 
-                                if(ox!=lowestX&&ox!=(highestX-1))
+                                if(ox!=lowest_x&&ox!=(highest_x-1))
                                 {
-                                    if(yScaled<=oy)
+                                    if(scaled_y<=oy)
                                     {
-                                        overlapHeight = yScaled+currentPixelHeightHalf-oy;
-                                        overlapHeight = overlapHeight>1?1:overlapHeight;
+                                        overlap_height = scaled_y+current_pixel_heightHalf-oy;
+                                        overlap_height = overlap_height>1?1:overlap_height;
                                     } else
                                     {
-                                        overlapHeight = yScaled-(oy+1);
-                                        overlapHeight = overlapHeight>1?1:overlapHeight;
+                                        overlap_height = scaled_y-(oy+1);
+                                        overlap_height = overlap_height>1?1:overlap_height;
                                     }
                                 } else
                                 {
                                     //this is just for a speedup
-                                    overlapHeight = 1;
+                                    overlap_height = 1;
                                 }
 
-                                pixelInsideAreaRatio = overlapWidth*overlapHeight;
+                                pixelInsideAreaRatio = overlap_width*overlap_height;
                             }
 
-                            pixelsAvgd += pixelInsideAreaRatio;
+                            pixels_avgd += pixelInsideAreaRatio;
 
                             for(uint8_t bppi = 0; bppi < bpp; ++bppi)
                             {
-                                avgPixel[bppi] += image[oy*width*bpp+ox*bpp+bppi]*pixelInsideAreaRatio;
+                                avg_pixel[bppi] += image[oy*width*bpp+ox*bpp+bppi]*pixelInsideAreaRatio;
                             }
                         }
                     }
 
                     for(uint8_t bppi = 0; bppi < bpp; ++bppi)
                     {
-                        resPixel[bppi] = avgPixel[bppi]/pixelsAvgd;
-                        avgPixel[bppi] = 0;
+                        res_pixel[bppi] = avg_pixel[bppi]/pixels_avgd;
+                        avg_pixel[bppi] = 0;
                     }
 
                     break;
@@ -1680,21 +1553,21 @@ void YandereImage::resize(unsigned desiredWidth, unsigned desiredHeight, ResizeT
 
             for(uint8_t bppi = 0; bppi < bpp; ++bppi)
             {
-                resizedImage.emplace_back(resPixel[bppi]);
+                resized_image.emplace_back(res_pixel[bppi]);
             }
         }
     }
 
-    width = desiredWidth;
-    height = desiredHeight;
+    width = set_width;
+    height = set_height;
 
-    image = std::move(resizedImage);
+    image = std::move(resized_image);
 }
 
-void YandereImage::flip()
+void yandere_image::flip()
 {
-    std::vector<uint8_t> flippedData;
-    flippedData.reserve(image.size());
+    std::vector<uint8_t> flipped_data;
+    flipped_data.reserve(image.size());
 
     for(unsigned y = height; y>0; --y)
     {
@@ -1702,31 +1575,31 @@ void YandereImage::flip()
         {
             for(uint8_t bppi = 0; bppi<bpp; ++bppi)
             {
-                flippedData.emplace_back(image[(y-1)*width*bpp+x*bpp+bppi]);
+                flipped_data.emplace_back(image[(y-1)*width*bpp+x*bpp+bppi]);
             }
         }
     }
 
-    image = std::move(flippedData);
+    image = std::move(flipped_data);
 }
 
-bool YandereImage::save_to_file(std::string savePath)
+bool yandere_image::save_to_file(std::string save_path)
 {
-    std::filesystem::path saveFilepath(savePath);
+    std::filesystem::path save_filepath(save_path);
 
-    if(saveFilepath.extension()==".pgm")
+    if(save_filepath.extension()==".pgm")
     {
-        pgm_save(savePath);
+        pgm_save(save_path);
 
         return true;
-    } else if(saveFilepath.extension()==".ppm")
+    } else if(save_filepath.extension()==".ppm")
     {
-    	ppm_save(savePath);
+    	ppm_save(save_path);
     	
     	return true;
-    } else if(saveFilepath.extension()==".png")
+    } else if(save_filepath.extension()==".png")
     {
-    	png_save(savePath);
+    	png_save(save_path);
     	
     	return true;
     }
@@ -1734,10 +1607,10 @@ bool YandereImage::save_to_file(std::string savePath)
     return false;
 }
 
-bool YandereImage::read(std::string loadPath)
+bool yandere_image::read(std::string load_path)
 {
-	std::filesystem::path iPath(loadPath);
-	_imagePath = loadPath;
+	std::filesystem::path iPath(load_path);
+	_image_path = load_path;
 
     if(iPath.extension()==".png")
     {
@@ -1752,17 +1625,17 @@ bool YandereImage::read(std::string loadPath)
     return false;
 }
 
-unsigned YandereImage::pixel_color_pos(unsigned x, unsigned y, uint8_t color)
+unsigned yandere_image::pixel_color_pos(unsigned x, unsigned y, uint8_t color)
 {
 	return y*width*bpp+x*bpp+color;
 }
 
-uint8_t YandereImage::pixel_color(unsigned x, unsigned y, uint8_t color)
+uint8_t yandere_image::pixel_color(unsigned x, unsigned y, uint8_t color)
 {
 	return image[y*width*bpp+x*bpp+color];
 }
 
-bool YandereImage::can_parse(std::string extension)
+bool yandere_image::can_parse(std::string extension)
 {
     if(extension=="png" || extension==".png")
     {

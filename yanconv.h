@@ -6,59 +6,63 @@
 
 //everything written by 57qr53r3dn4y to reinvent the wheel (and very poorly)
 
-std::vector<std::string> stringSplit(std::string, std::string);
-
-template <typename T>
-inline void cAToNumber(char* val, T* returnVal);
-
-template <typename T>
-inline std::vector<T> lengthsToPrefix(std::vector<T> lengthsArr, T maxVal, uint8_t* highestLength);
-
-class YandereImage
+namespace yandereconv
 {
-public:
-    enum class ResizeType {nearest_neighbor, area_sample};
+	std::vector<std::string> string_split(std::string text, std::string delimeter);
 
-    YandereImage();
-    YandereImage(std::string imagePath);
+	//reverses each character bit wise and returns in return_val
+	template <typename T>
+	void chars_to_number(char* val, T* return_val);
 
-    void bpp_resize(uint8_t desiredBpp, uint8_t extraChannel=255);
+	template <typename T>
+	std::vector<T> lengths_to_prefix(std::vector<T> lengths_arr, T max_val, uint8_t* highest_length);
 
-    void resize(unsigned desiredWidth, unsigned desiredHeight, ResizeType resizeType);
-    void flip();
+	class yandere_image
+	{
+	public:
+		enum class resize_type {nearest_neighbor, area_sample};
 
-    void grayscale();
+		yandere_image();
+		yandere_image(std::string image_path);
 
-	bool read(std::string loadPath);
-    bool save_to_file(std::string savePath);
-    
-    unsigned pixel_color_pos(unsigned x, unsigned y, uint8_t color);
-    uint8_t pixel_color(unsigned x, unsigned y, uint8_t color);
+		void bpp_resize(uint8_t set_bpp, uint8_t extra_channel=255);
 
-    static bool can_parse(std::string extension);
+		void resize(unsigned set_width, unsigned set_height, resize_type type);
+		void flip();
 
-    unsigned width;
-    unsigned height;
-    uint8_t bpp;
+		void grayscale();
 
-    std::vector<uint8_t> image;
+		bool read(std::string load_path);
+		bool save_to_file(std::string save_path);
+		
+		unsigned pixel_color_pos(unsigned x, unsigned y, uint8_t color);
+		uint8_t pixel_color(unsigned x, unsigned y, uint8_t color);
 
-private:
-    bool png_read(bool checkChecksums = false);
-    std::vector<uint8_t> yan_deflate(std::vector<uint8_t>& inputData);
+		static bool can_parse(std::string extension);
 
-    bool pgm_read();
+		unsigned width;
+		unsigned height;
+		uint8_t bpp;
 
-    void pgm_save(std::string savePath);
-    void ppm_save(std::string savePath);
-    
-    std::vector<uint8_t> yan_inflate(std::vector<uint8_t>& inputData);
-    std::vector<uint32_t> crc_table_gen();
-    void png_save(std::string savePath);
+		std::vector<uint8_t> image;
 
-    uint8_t sub_positive(int lVar, int rVar);
+	private:
+		bool png_read(bool do_checksums = false);
+		std::vector<uint8_t> yan_deflate(std::vector<uint8_t>& input_data);
 
-    std::string _imagePath;
+		bool pgm_read();
+
+		void pgm_save(std::string save_path);
+		void ppm_save(std::string save_path);
+		
+		std::vector<uint8_t> yan_inflate(std::vector<uint8_t>& input_data);
+		std::vector<uint32_t> crc_table_gen();
+		void png_save(std::string save_path);
+
+		uint8_t sub_positive(int lval, int rval);
+
+		std::string _image_path;
+	};
 };
 
 #endif
