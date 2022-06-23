@@ -3,187 +3,236 @@
 
 #include <vector>
 #include <mutex>
+#include <filesystem>
 
 #include <GL/glew.h>
 #include <GL/glu.h>
 #include <GL/gl.h>
 
+#include "ycamera.h"
 #include "yanconv.h"
 
-namespace yanderegl
+namespace yangl
 {
-	namespace y_const
+	enum class default_texture {solid = 0, LAST};
+	enum class default_model {plane = 0, circle, triangle, cube, pyramid, LAST};
+	enum class default_shader {world = 0, gui, LAST};
+
+	enum class shader_type {fragment, vertex, geometry};
+
+	namespace yconst
 	{
+		const int load_chars = 128;
 		const int circle_lod = 10;
 	};
 
-	struct yan_position
+	class generic_model
 	{
-		float x = 0;
-		float y = 0;
-		float z = 0;
+	public:
+		virtual ~generic_model() = default;
+
+		virtual void draw() const = 0;
+
+		virtual bool empty() const = 0;
 	};
 
-	struct yan_scale
+	class generic_texture
 	{
-		float x = 1;
-		float y = 1;
-		float z = 1;
+	public:
+		virtual ~generic_texture() = default;
+
+		virtual void set_current() const = 0;
+
+		virtual int width() const = 0;
+		virtual int height() const = 0;
 	};
 
-	struct yan_transforms
+	class generic_shader
 	{
-		yan_position position = {};
+	public:
+		virtual ~generic_shader() = default;
 
-		yan_scale scale = {};
-
-		float rotation = 0;
-
-		yan_position axis = {0, 0, 1};
+		virtual void apply_uniforms(const camera* cam, const glm::mat4& transform) const noexcept = 0;
 	};
 
-	struct yan_color
+
+	namespace global
 	{
-		float r = 1;
-		float g = 1;
-		float b = 1;
-		float a = 1;
+		inline bool initialized = false;
 	};
 
-	struct yan_border
+	template<typename T>
+	struct buffers_nocopy
 	{
-		bool enabled = false;
-		yan_color color = {};
-		float width = 1.1f;
-	};
+		T container;
 
-	struct yvec2
-	{
-		float x = 0;
-		float y = 0;
-	};
+		buffers_nocopy()
+		{
+			if(global::initialized)
+				container.generate();
+		}
 
-	struct yvec3
-	{
-		float x = 0;
-		float y = 0;
-		float z = 0;
-	};
+		~buffers_nocopy() {};
 
-	struct yvec4
-	{
-		float x = 0;
-		float y = 0;
-		float z = 0;
-		float w = 0;
+		buffers_nocopy(const buffers_nocopy&)
+		{
+			container.generate();
+		}
+
+		buffers_nocopy(buffers_nocopy&& other) noexcept
+		: container(other.container)
+		{
+			other.container = T{};
+		}
+
+		buffers_nocopy& operator=(const buffers_nocopy& other)
+		{
+			if(this!=&other)
+			{
+				container.generate();
+			}
+			return *this;
+		}
+
+		buffers_nocopy& operator=(buffers_nocopy&& other) noexcept
+		{
+			if(this!=&other)
+			{
+				container = other.container;
+				other.container = T{};
+			}
+			return *this;
+		}
 	};
 
 
 	namespace core
 	{
-		struct letter_data
-		{
-			float width;
-			float height;
-			float origin_x;
-			float origin_y;
-			float hdist;
-		};
-		
-		struct object_data
-		{
-			yan_color color;
-			float matrix[16];
-		};
-		const int buffer_size = sizeof(float)*(sizeof(object_data)/sizeof(float));
-	
 		class initializer
 		{
 		public:
-			initializer(bool stencil, bool antialiasing, bool culling);
+			initializer();
 		};
 
-		class model
+		class model_storage : virtual public generic_model
 		{
-		private:
-			struct buffers_nocopy
+		protected:
+			struct container
 			{
-				bool buffers_made = false;
-				bool need_update = true;
-				
-				unsigned vertex_buffer_object_id;
-				unsigned element_object_buffer_id;
-			
-				unsigned object_data_buffer_id;
-			
-				unsigned vertex_array_object_id;
-				
-				buffers_nocopy();
-				~buffers_nocopy();
-				
-				buffers_nocopy(const buffers_nocopy&);
-				buffers_nocopy(buffers_nocopy&&) noexcept;
-				
-				buffers_nocopy& operator=(const buffers_nocopy&);
-				buffers_nocopy& operator=(buffers_nocopy&&) noexcept;
-				
-				private:
-					void gen_buffers();
-			};
-		
-		public:
-			model() {};
-			model(std::string model_path);
+				~container();
 
-			void draw(const object_data* obj_data) const;
-			
-			bool empty() const;
-			
-			void vertices_insert(std::initializer_list<float> list);
-			void indices_insert(std::initializer_list<unsigned> list);
-			
-			void clear();
-			
-		private:
-			bool parse_model(std::string model_path, std::string file_format);
-			bool parse_default(const std::string name);
-			
-			void update_buffers() const;
-			
-			bool _empty = true;
-			
+				bool need_update = true;
+
+				unsigned vertex_buffer_object_id = -1;
+				unsigned element_object_buffer_id = -1;
+				unsigned vertex_array_object_id = -1;
+
+				void generate();
+			};
+
+		public:
+			model_storage();
+			model_storage(const std::filesystem::path model_path);
+			model_storage(const default_model id);
+			model_storage(const std::vector<float> vertices, const std::vector<unsigned> indices);
+
+			model_storage(const model_storage&) = default;
+			model_storage(model_storage&&) noexcept = default;
+			model_storage& operator=(const model_storage&) = default;
+			model_storage& operator=(model_storage&&) noexcept = default;
+
+			virtual ~model_storage() = default;
+
+			void draw_buffers(const container& buffers) const noexcept;
+
+			bool empty() const noexcept;
+
+			virtual void vertices_insert(const std::initializer_list<float> list) noexcept;
+			virtual void indices_insert(const std::initializer_list<unsigned> list) noexcept;
+
+			virtual void clear() noexcept;
+
+		protected:
+			void update_buffers(container& buffers) const;
+
+			bool parse_default(const default_model id);
+
 			std::vector<float> _vertices;
 			std::vector<unsigned> _indices;
-			
-			buffers_nocopy _buffers;
 		};
 
-		class texture
+		class model : public model_storage, virtual public generic_model
+		{
+		public:
+			using model_storage::model_storage;
+
+			void draw() const;
+
+			void vertices_insert(const std::initializer_list<float> list) noexcept override;
+			void indices_insert(const std::initializer_list<unsigned> list) noexcept override;
+
+			void clear() noexcept override;
+			
+		private:
+			mutable buffers_nocopy<model_storage::container> _buffers;
+		};
+
+		class model_manual : public model_storage, virtual public generic_model
 		{
 		private:
-			struct buffers_nocopy
+			struct state_holder
 			{
-				bool buffers_made = false;
+				bool generated = false;
+
+				state_holder() {};
+				state_holder(const state_holder&) {};
+				state_holder(state_holder&& other) noexcept : generated(other.generated) {};
+				state_holder& operator=(const state_holder&) {return *this;};
+				state_holder& operator=(state_holder&& other) noexcept
+				{
+					if(this!=&other)
+					{
+						generated = other.generated;
+					}
+					return *this;
+				}
+
+			} _state;
+
+		public:
+			using model_storage::model_storage;
+
+			void generate_buffers() noexcept;
+
+			void draw() const;
+
+			void vertices_insert(const std::initializer_list<float> list) noexcept override;
+			void indices_insert(const std::initializer_list<unsigned> list) noexcept override;
+
+			void clear() noexcept override;
+
+		private:
+			mutable model_storage::container _buffers;
+		};
+
+		class texture : public generic_texture
+		{
+		private:
+			struct container
+			{
+				~container();
+
+				unsigned texture_buffer_object_id = -1;
 				
-				unsigned texture_buffer_object_id;
-				
-				buffers_nocopy();
-				~buffers_nocopy();
-				
-				buffers_nocopy(const buffers_nocopy&);
-				buffers_nocopy(buffers_nocopy&&) noexcept;
-				
-				buffers_nocopy& operator=(const buffers_nocopy&);
-				buffers_nocopy& operator=(buffers_nocopy&&) noexcept;
-				
-				private:
-					void gen_buffers();
+				void generate();
 			};
 			
 		public:
 			texture() {};
-			texture(std::string image_path);
-			texture(yandereconv::yandere_image image);
+			texture(const std::string image_path);
+			texture(const default_texture id);
+			texture(const yconv::image image);
+			texture(const int width, const int height, const std::vector<uint8_t> data);
 
 			void set_current() const;
 			
@@ -191,40 +240,53 @@ namespace yanderegl
 			int height() const;
 			
 		private:
-			bool parse_image(std::string image_path, std::string file_format);
+			void update_buffers() const;
 
-			static unsigned calc_type(uint8_t bpp);
+			bool parse_image(const std::string image_path, const std::string file_format);
+			bool parse_default(const default_texture id);
+
+			static unsigned calc_type(const uint8_t bpp);
 
 			unsigned _type;
-			yandereconv::yandere_image _image;
+			yconv::image _image;
 			
 			bool _empty = true;
 			
-			buffers_nocopy _buffers;
+			buffers_nocopy<container> _buffers;
 		};
 
-
-		enum class shader_type {fragment, vertex, geometry};
 
 		class shader
 		{
 		public:
 			shader() {};
-			shader(std::string text, shader_type type);
+			shader(const std::string text, const shader_type type);
+			shader(const default_shader shader, const shader_type type);
 			
-			std::string& text();
+			const std::string& text() const;
 
-			shader_type type();
+			shader_type type() const;
 
 		private:
-			std::string _text;
+			std::string _text = "";
 			
 			shader_type _type;
 		};
 
-		class shader_program
+		class shader_program : public generic_shader
 		{
 		private:
+			struct container
+			{
+				~container();
+
+				bool need_update = true;
+
+				unsigned program_id = -1;
+
+				void generate();
+			};
+
 			struct prop
 			{
 				int length;
@@ -233,7 +295,7 @@ namespace yanderegl
 
 		public:
 			shader_program() {};
-			shader_program(unsigned program_id);
+			shader_program(const shader fragment, const shader vertex, const shader geometry);
 			
 			unsigned add_num(const std::string name);
 			unsigned add_vec2(const std::string name);
@@ -241,7 +303,7 @@ namespace yanderegl
 			unsigned add_vec4(const std::string name);
 
 			template<typename T>
-			void set_prop(unsigned prop_id, const T val)
+			void set_prop(const unsigned prop_id, const T val)
 			{
 				if constexpr(std::is_same<T, yvec4>::value)
 				{
@@ -258,31 +320,61 @@ namespace yanderegl
 				}
 			}
 
-			void apply_uniforms();
+			void apply_uniforms(const camera* cam, const glm::mat4& transform) const noexcept;
 
 			unsigned program() const;
 
-			unsigned view_mat() const;
-			unsigned projection_mat() const;
-
 		private:
+			static void output_error(const unsigned object_id, const bool is_program = false);
+
 			template<typename T, typename V>
-			unsigned add_any(T& type, V vec_type, int index, std::string name);
+			unsigned add_any(T& type, const V vec_type, const int index, const std::string name);
 
-			void matrix_setup();
-
-			unsigned _program_id;
+			void find_uniforms() const;
+			void generate_shaders() const;
 			
-			unsigned _view_mat;
-			unsigned _projection_mat;
+			mutable unsigned _view_mat;
+			mutable unsigned _projection_mat;
+			mutable unsigned _model_mat;
 
 			std::vector<prop> _props_vec;
 			std::vector<float> _shader_props;
 			std::vector<yvec2> _shader_props_vec2;
 			std::vector<yvec3> _shader_props_vec3;
 			std::vector<yvec4> _shader_props_vec4;
+
+			shader _fragment;
+			shader _vertex;
+			shader _geometry;
+
+			mutable buffers_nocopy<container> _buffers;
 		};
 	};
+
+	class default_assets_control
+	{
+	public:
+		default_assets_control() {};
+
+		void initialize();
+
+		const core::texture* texture(const default_texture id) const noexcept;
+		const core::model* model(const default_model id) const noexcept;
+		const core::shader_program* shader(const default_shader id) const noexcept;
+
+	private:
+		std::array<core::texture,
+			static_cast<int>(default_texture::LAST)> _textures;
+
+		std::array<core::model,
+			static_cast<int>(default_model::LAST)> _models;
+
+		std::array<core::shader_program,
+			static_cast<int>(default_shader::LAST)> _shaders;
+	};
+
+	//cuz its inline the destructor gets called after the gl context is destroyed so its kinda bad??
+	inline default_assets_control default_assets;
 };
 
 #endif

@@ -17,71 +17,46 @@
 
 //the templates stuff is the main body so i cant separate it into a different file
 
-namespace yanderethreads
+namespace ythreads
 {
-	namespace yan_templates
+	template<typename F = void*, typename A = void*, typename B = void*>
+	class pool
 	{
-		//because the std::conditional_t is evaluated at compile time and not branched
-		//i need different versions of functions to always return valid types
-		template<bool C, int N, typename... A>
-		struct valid_element
-		{};
-
-		template<int N, typename... A>
-		struct valid_element<true, N, A...>
-		{
-			typedef typename std::tuple_element<N, std::tuple<A...>>::type type;
-		};
-		
-		template<int N, typename... A>
-		struct valid_element<false, N, A...>
-		{
-			typedef void* type;
-		};
-
-		//evil tuple_element be like
-		//gets the element in range of the A pack	
-		template<int N, typename... A>
-		struct element_tuple
-		{
-			//call element_tuple until it gets below the size of pack and set the type variable to its type
-			typedef std::conditional_t<(sizeof...(A)>N), typename valid_element<(sizeof...(A)>N), N, A...>::type, void*> type;
-		};
-	};
-
-
-	template<typename F, typename... A>
-	class yandere_pool
-	{
-	private:
-		using f_arg_type = std::conditional_t<std::is_member_function_pointer<F>::value,
-		typename yan_templates::element_tuple<1, A...>::type,
-		typename yan_templates::element_tuple<0, A...>::type>;
-
 	public:
-		yandere_pool() {};
-		~yandere_pool() {exit_threads();};
+		pool() {};
+		pool(const int threads_num, F call_func);
+		pool(const int threads_num, F call_func, A arg0);
+		pool(const int threads_num, F call_func, B arg0,  A arg1);
+
+		pool(const pool&);
+		pool(pool&&) noexcept;
+		pool& operator=(const pool&);
+		pool& operator=(pool&&) noexcept;
+
+		~pool() {exit_threads();};
 		
-		yandere_pool(int threads_num, F call_func, A... args);
-		
-		void run(f_arg_type arg);
+		void run(const A arg);
 		void run();
 		
 		void exit_threads();
 		
 	private:
+		void create_threads(const int num);
+
 		void work_func();
+
+		void copy_members(const pool&);
+		void move_members(pool&&) noexcept;
 
 		mutable std::mutex _wait_mutex;
 		std::condition_variable _conditional_var;
 
 		F _call_func;
 
-		using call_type = std::conditional_t<std::is_member_function_pointer<F>::value, typename yan_templates::element_tuple<0, A...>::type, void*>;
-		call_type _class_ptr; 
+		B _class_ptr;
 		
 		
-		std::queue<f_arg_type> _args_queue;
+		std::queue<A> _args_queue;
 		
 		std::vector<std::thread> _threads_vec;
 
@@ -92,28 +67,107 @@ namespace yanderethreads
 	};
 
 
-	//you have to provide some random arguments of the correct type for it to set it up
-	template<typename F, typename... A>
-	yandere_pool<F, A...>::yandere_pool(int threads_num, F call_func, A... args) : _call_func(call_func), _threads_num(threads_num), _empty(false)
+	template<typename F, typename A, typename B>
+	pool<F, A, B>::pool(const int threads_num, F call_func)
+	: _call_func(call_func), _threads_num(threads_num), _empty(false)
 	{
-		assert(threads_num>0);
-		
-		if constexpr(std::is_member_function_pointer<F>::value)
-		{
-			static_assert(sizeof...(args)>0);
-			_class_ptr = std::get<0>(std::forward_as_tuple(args...));
-		}
-		
-		_threads_vec.reserve(threads_num);
-		for(int i = 0; i < threads_num; ++i)
-		{
-			_threads_vec.emplace_back(std::thread(&yandere_pool::work_func, this));
-		}
+		create_threads(threads_num);
+	}
+
+	template<typename F, typename A, typename B>
+	pool<F, A, B>::pool(const int threads_num, F call_func, A arg0)
+	: _call_func(call_func), _threads_num(threads_num), _empty(false)
+	{
+		create_threads(threads_num);
+	}
+
+	template<typename F, typename A, typename B>
+	pool<F, A, B>::pool(const int threads_num, F call_func, B arg0,  A arg1)
+	: _call_func(call_func), _threads_num(threads_num), _class_ptr(arg0), _empty(false)
+	{
+		create_threads(threads_num);
 	}
 
 
-	template<typename F, typename... A>
-	void yandere_pool<F, A...>::run(f_arg_type arg)
+	template<typename F, typename A, typename B>
+	pool<F, A, B>::pool(const pool& other)
+	{
+		std::unique_lock<std::mutex> lock(other._wait_mutex);
+
+		copy_members(other);
+	}
+
+	template<typename F, typename A, typename B>
+	pool<F, A, B>::pool(pool&& other) noexcept
+	{
+		std::unique_lock<std::mutex> lock(other._wait_mutex);
+
+		move_members(std::move(other));
+	}
+
+	template<typename F, typename A, typename B>
+	pool<F, A, B>& pool<F, A, B>::operator=(const pool& other)
+	{
+		if(this != &other)
+		{
+			std::unique_lock<std::mutex> lock_self(_wait_mutex, std::defer_lock);
+			std::unique_lock<std::mutex> lock(other._wait_mutex, std::defer_lock);
+			std::lock(lock_self, lock);
+
+			copy_members(other);
+		}
+		return *this;
+	}
+
+	template<typename F, typename A, typename B>
+	pool<F, A, B>& pool<F, A, B>::operator=(pool&& other) noexcept
+	{
+		if(this != &other)
+		{
+			std::unique_lock<std::mutex> lock_self(_wait_mutex, std::defer_lock);
+			std::unique_lock<std::mutex> lock(other._wait_mutex, std::defer_lock);
+			std::lock(lock_self, lock);
+
+			move_members(std::move(other));
+		}
+		return *this;
+	}
+
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::copy_members(const pool& other)
+	{
+		_call_func = other._call_func;
+		_class_ptr = other._class_ptr;
+
+		_args_queue = other._args_queue;
+
+		_threads_num = other._threads_num;
+
+		_threads_running = other._threads_running;
+		_empty = other._empty;
+
+		create_threads(_threads_num);
+	}
+
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::move_members(pool&& other) noexcept
+	{
+		_call_func = other._call_func;
+		_class_ptr = other._class_ptr;
+
+		_args_queue = std::move(other._args_queue);
+
+		_threads_num = other._threads_num;
+
+		_threads_running = other._threads_running;
+		_empty = other._empty;
+
+		create_threads(_threads_num);
+	}
+
+
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::run(const A arg)
 	{
 		assert(!_empty);
 		std::lock_guard<std::mutex> lock(_wait_mutex);
@@ -123,19 +177,14 @@ namespace yanderethreads
 		_conditional_var.notify_one();
 	}
 
-	template<typename F, typename... A>
-	void yandere_pool<F, A...>::run()
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::run()
 	{
-		assert(!_empty);
-		std::lock_guard<std::mutex> lock(_wait_mutex);
-		
-		_args_queue.push(nullptr);
-		
-		_conditional_var.notify_one();
+		run(nullptr);
 	}
 
-	template<typename F, typename... A>
-	void yandere_pool<F, A...>::exit_threads()
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::exit_threads()
 	{
 		if(_threads_running)
 		{
@@ -153,12 +202,24 @@ namespace yanderethreads
 		}
 	}
 
-	template<typename F, typename... A>
-	void yandere_pool<F, A...>::work_func()
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::create_threads(const int num)
+	{
+		assert(num>0);
+
+		_threads_vec.reserve(num);
+		for(int i = 0; i < num; ++i)
+		{
+			_threads_vec.emplace_back(std::thread(&pool::work_func, this));
+		}
+	}
+
+	template<typename F, typename A, typename B>
+	void pool<F, A, B>::work_func()
 	{
 		while(true)
 		{
-			f_arg_type f_arg;
+			A f_arg;
 			{
 				std::unique_lock<std::mutex> lock(_wait_mutex);
 				
@@ -177,7 +238,7 @@ namespace yanderethreads
 			{
 				//class member function
 			
-				if constexpr(std::is_same<f_arg_type, void*>::value)
+				if constexpr(std::is_same<A, void*>::value)
 				{
 					//it has no arguments
 					(_class_ptr->*_call_func)();
@@ -190,7 +251,7 @@ namespace yanderethreads
 			{
 				//non class member function
 				
-				if constexpr(std::is_same<f_arg_type, void*>::value)
+				if constexpr(std::is_same<A, void*>::value)
 				{
 					//it has no arguments
 					_call_func();
