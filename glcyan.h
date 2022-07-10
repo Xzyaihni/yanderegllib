@@ -105,6 +105,9 @@ namespace yangl
 		void set_rotation_axis(const yvec3 axis);
 
 		void draw() const noexcept;
+
+		void set_model(const generic_model* model) noexcept;
+		void set_texture(const generic_texture* texture) noexcept;
 		
 	protected:
 		void set_matrix() noexcept;

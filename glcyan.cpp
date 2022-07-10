@@ -191,7 +191,7 @@ font_data controller::create_font(const FT_Face font, const int size) noexcept
 				scaled_width, scaled_height, 0, x_max, 1,
 				scaled_width, 0, 0,				x_max, y_max,
 				0, 0, 0,						x_min, y_max},
-			std::vector<unsigned>{0, 2, 1,
+			std::vector<int>{0, 2, 1,
 				2, 0, 3});
 
 		for(int j = 0; j < c_pixels.size(); ++j)
@@ -348,10 +348,32 @@ void generic_object::draw() const noexcept
 	if(_model->empty())
 		return;
 	
+	const bool texture_transparent = _texture->transparent();
+
+	if(texture_transparent)
+	{
+		glDepthMask(GL_FALSE);
+	}
+
 	_shader->apply_uniforms(_camera, _transform);
 	_texture->set_current();
 
 	_model->draw();
+
+	if(texture_transparent)
+	{
+		glDepthMask(GL_TRUE);
+	}
+}
+
+void generic_object::set_model(const generic_model* model) noexcept
+{
+	_model = model;
+}
+
+void generic_object::set_texture(const generic_texture* texture) noexcept
+{
+	_texture = texture;
 }
 
 void generic_object::set_matrix() noexcept

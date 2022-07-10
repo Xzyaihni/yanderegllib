@@ -314,6 +314,24 @@ uint8_t image::pixel_color(const unsigned x, const unsigned y, const uint8_t col
 	return data[y*width*bpp+x*bpp+color];
 }
 
+bool image::contains_transparent() const noexcept
+{
+    if(bpp!=4)
+        return false;
+
+    unsigned index = 0;
+    for(int y = 0; y < height; ++y)
+    {
+        for(int x = 0; x < width; ++x, index += bpp)
+        {
+            if(data[index+(bpp-1)]!=255)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 bool image::can_parse(const std::string extension) noexcept
 {
     if(extension=="png" || extension==".png")
@@ -352,15 +370,15 @@ bool model::obj_read(const std::filesystem::path load_path)
     indices.clear();
 
     std::vector<float> c_verts;
-    std::vector<unsigned> vert_indices;
+    std::vector<int> vert_indices;
     std::vector<float> c_uvs;
-    std::vector<unsigned> uv_indices;
+    std::vector<int> uv_indices;
 
     std::vector<float> c_normals;
-    std::vector<unsigned> normal_indices;
+    std::vector<int> normal_indices;
 
     std::vector<std::string> saved_params;
-    std::vector<unsigned> repeated_verts;
+    std::vector<int> repeated_verts;
 
     while(std::getline(model_stream, c_model_line))
     {
@@ -416,7 +434,7 @@ bool model::obj_read(const std::filesystem::path load_path)
                 params.pop_back();
             }
 
-            std::vector<unsigned> order = {0, 1, 2};
+            std::vector<int> order = {0, 1, 2};
 
             if(params_size>3)
             {
@@ -434,7 +452,7 @@ bool model::obj_read(const std::filesystem::path load_path)
 
                 if(find_index!=saved_params.end())
                 {
-                    repeated_verts.push_back((unsigned)(vert_indices.size()-std::distance(saved_params.begin(), find_index)));
+                    repeated_verts.push_back(vert_indices.size()-std::distance(saved_params.begin(), find_index));
                 } else
                 {
                     repeated_verts.push_back(0);
@@ -444,11 +462,11 @@ bool model::obj_read(const std::filesystem::path load_path)
 
                 const std::vector<std::string> face_vals = string_split(params[p], "/");
 
-                vert_indices.push_back((unsigned)(std::stoi(face_vals[0]))-1);
+                vert_indices.push_back(std::stoi(face_vals[0])-1);
 
                 if(face_vals.size()>=2 && face_vals[1].length()!=0)
                 {
-                    uv_indices.push_back((unsigned)(std::stoi(face_vals[1])-1));
+                    uv_indices.push_back(std::stoi(face_vals[1])-1);
                 } else
                 {
                     uv_indices.push_back(UINT_MAX);
@@ -456,7 +474,7 @@ bool model::obj_read(const std::filesystem::path load_path)
 
                 if(face_vals.size()==3)
                 {
-                    normal_indices.push_back((unsigned)(std::stoi(face_vals[2])-1));
+                    normal_indices.push_back(std::stoi(face_vals[2])-1);
                 } else
                 {
                     normal_indices.push_back(UINT_MAX);

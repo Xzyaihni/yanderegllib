@@ -10,8 +10,7 @@
 #include <condition_variable>
 #include <type_traits>
 #include <tuple>
-
-#include <iostream>
+#include <functional>
 
 //design level: spaghetti
 
@@ -241,11 +240,11 @@ namespace ythreads
 				if constexpr(std::is_same<A, void*>::value)
 				{
 					//it has no arguments
-					(_class_ptr->*_call_func)();
+					std::invoke(_call_func, _class_ptr);
 				} else
 				{
 					//it has arguments
-					(_class_ptr->*_call_func)(std::move(f_arg));
+					std::invoke(_call_func, _class_ptr, std::move(f_arg));
 				}
 			} else
 			{
@@ -254,11 +253,11 @@ namespace ythreads
 				if constexpr(std::is_same<A, void*>::value)
 				{
 					//it has no arguments
-					_call_func();
+					std::invoke(_call_func);
 				} else
 				{
 					//it has arguments
-					_call_func(std::move(f_arg));
+					std::invoke(_call_func, std::move(f_arg));
 				}
 			}
 		}

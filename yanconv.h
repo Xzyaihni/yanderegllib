@@ -33,6 +33,7 @@ namespace yconv
 		unsigned pixel_color_pos(const unsigned x, const unsigned y, const uint8_t color) const noexcept;
 		uint8_t pixel_color(const unsigned x, const unsigned y, const uint8_t color) const noexcept;
 
+		bool contains_transparent() const noexcept;
 		static bool can_parse(const std::string extension) noexcept;
 
 		unsigned width;
@@ -96,7 +97,7 @@ namespace yconv
 		bool read(const std::filesystem::path load_path);
 
 		std::vector<float> vertices;
-		std::vector<unsigned> indices;
+		std::vector<int> indices;
 
 	private:
 		bool obj_read(const std::filesystem::path load_path);

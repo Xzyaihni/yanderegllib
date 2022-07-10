@@ -14,7 +14,7 @@
 
 namespace yangl
 {
-	enum class default_texture {solid = 0, LAST};
+	enum class default_texture {solid = 0, half_transparent, quarter_transparent, LAST};
 	enum class default_model {plane = 0, circle, triangle, cube, pyramid, LAST};
 	enum class default_shader {world = 0, gui, LAST};
 
@@ -45,6 +45,7 @@ namespace yangl
 
 		virtual int width() const = 0;
 		virtual int height() const = 0;
+		virtual bool transparent() const = 0;
 	};
 
 	class generic_shader
@@ -134,7 +135,7 @@ namespace yangl
 			model_storage();
 			model_storage(const std::filesystem::path model_path);
 			model_storage(const default_model id);
-			model_storage(const std::vector<float> vertices, const std::vector<unsigned> indices);
+			model_storage(const std::vector<float> vertices, const std::vector<int> indices);
 
 			model_storage(const model_storage&) = default;
 			model_storage(model_storage&&) noexcept = default;
@@ -148,7 +149,7 @@ namespace yangl
 			bool empty() const noexcept;
 
 			virtual void vertices_insert(const std::initializer_list<float> list) noexcept;
-			virtual void indices_insert(const std::initializer_list<unsigned> list) noexcept;
+			virtual void indices_insert(const std::initializer_list<int> list) noexcept;
 
 			virtual void clear() noexcept;
 
@@ -158,7 +159,7 @@ namespace yangl
 			bool parse_default(const default_model id);
 
 			std::vector<float> _vertices;
-			std::vector<unsigned> _indices;
+			std::vector<int> _indices;
 		};
 
 		class model : public model_storage, virtual public generic_model
@@ -166,10 +167,10 @@ namespace yangl
 		public:
 			using model_storage::model_storage;
 
-			void draw() const;
+			void draw() const override;
 
 			void vertices_insert(const std::initializer_list<float> list) noexcept override;
-			void indices_insert(const std::initializer_list<unsigned> list) noexcept override;
+			void indices_insert(const std::initializer_list<int> list) noexcept override;
 
 			void clear() noexcept override;
 			
@@ -204,10 +205,10 @@ namespace yangl
 
 			void generate_buffers() noexcept;
 
-			void draw() const;
+			void draw() const override;
 
 			void vertices_insert(const std::initializer_list<float> list) noexcept override;
-			void indices_insert(const std::initializer_list<unsigned> list) noexcept override;
+			void indices_insert(const std::initializer_list<int> list) noexcept override;
 
 			void clear() noexcept override;
 
@@ -238,8 +239,12 @@ namespace yangl
 			
 			int width() const;
 			int height() const;
+			bool transparent() const;
 			
 		private:
+			void full_setup() noexcept;
+
+			void premultiply() noexcept;
 			void update_buffers() const;
 
 			bool parse_image(const std::string image_path, const std::string file_format);
@@ -251,6 +256,7 @@ namespace yangl
 			yconv::image _image;
 			
 			bool _empty = true;
+			bool _has_transparency = false;
 			
 			buffers_nocopy<container> _buffers;
 		};

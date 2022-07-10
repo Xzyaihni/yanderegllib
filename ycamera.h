@@ -50,6 +50,8 @@ namespace yangl
 
 		yvec3 position() const noexcept;
 
+		float distance(const yvec3 point) const noexcept;
+
 		//returns -1 if the point is in the negative direction, 1 if positive, 0 if inside the camera planes
 		int x_point_side(const yvec3 point) const noexcept;
 		int y_point_side(const yvec3 point) const noexcept;
@@ -69,11 +71,11 @@ namespace yangl
 
 		void calculate_planes();
 
-		glm::vec3 _camera_position;
-		glm::vec3 _camera_direction;
-		glm::vec3 _camera_up;
-		glm::vec3 _camera_right;
-		glm::vec3 _camera_forward;
+		glm::vec3 _position;
+		glm::vec3 _direction;
+		glm::vec3 _up;
+		glm::vec3 _right;
+		glm::vec3 _forward;
 
 		glm::mat4 _view_matrix;
 		glm::mat4 _projection_matrix;

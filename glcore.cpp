@@ -25,7 +25,7 @@ initializer::initializer()
 	}
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -62,8 +62,6 @@ void model_storage::container::generate()
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
-
-	glBindVertexArray(0);
 }
 
 model_storage::model_storage()
@@ -85,7 +83,7 @@ model_storage::model_storage(const default_model id)
 			+ std::to_string(static_cast<int>(id)));
 }
 
-model_storage::model_storage(const std::vector<float> vertices, const std::vector<unsigned> indices)
+model_storage::model_storage(const std::vector<float> vertices, const std::vector<int> indices)
 : _vertices(vertices), _indices(indices)
 {
 }
@@ -110,7 +108,7 @@ void model_storage::vertices_insert(const std::initializer_list<float> list) noe
 	_vertices.insert(_vertices.end(), list);
 }
 
-void model_storage::indices_insert(const std::initializer_list<unsigned> list) noexcept
+void model_storage::indices_insert(const std::initializer_list<int> list) noexcept
 {
 	_indices.insert(_indices.end(), list);
 }
@@ -143,9 +141,7 @@ void model_storage::update_buffers(container& buffers) const
 
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers.element_object_buffer_id);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned) * _indices.size(), _indices.data(), GL_STATIC_DRAW);
-
-	glBindVertexArray(0);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * _indices.size(), _indices.data(), GL_STATIC_DRAW);
 }
 
 bool model_storage::parse_default(const default_model id)
@@ -289,7 +285,7 @@ void model::vertices_insert(const std::initializer_list<float> list) noexcept
 	_buffers.container.need_update = true;
 }
 
-void model::indices_insert(const std::initializer_list<unsigned> list) noexcept
+void model::indices_insert(const std::initializer_list<int> list) noexcept
 {
 	model_storage::indices_insert(list);
 
@@ -327,7 +323,7 @@ void model_manual::vertices_insert(const std::initializer_list<float> list) noex
 	_buffers.need_update = true;
 }
 
-void model_manual::indices_insert(const std::initializer_list<unsigned> list) noexcept
+void model_manual::indices_insert(const std::initializer_list<int> list) noexcept
 {
 	model_storage::indices_insert(list);
 
@@ -363,7 +359,7 @@ texture::texture(const std::string image_path) : _empty(false)
 		throw std::runtime_error(std::string("error parsing image: ")
 			+ image_path);
 
-	update_buffers();
+	full_setup();
 }
 
 texture::texture(const default_texture id) : _empty(false)
@@ -372,7 +368,7 @@ texture::texture(const default_texture id) : _empty(false)
 		throw std::runtime_error(std::string("error parsing default texture: ")
 			+ std::to_string(static_cast<int>(id)));
 
-	update_buffers();
+	full_setup();
 }
 
 texture::texture(const yconv::image image) : _image(image), _empty(false)
@@ -380,7 +376,7 @@ texture::texture(const yconv::image image) : _image(image), _empty(false)
 	_type = calc_type(image.bpp);
 	_image.flip();
 
-	update_buffers();
+	full_setup();
 }
 
 texture::texture(const int width, const int height, const std::vector<uint8_t> data)
@@ -388,14 +384,12 @@ texture::texture(const int width, const int height, const std::vector<uint8_t> d
 {
 	_image = yconv::image(width, height, data.size()/(width*height), data);
 
-	update_buffers();
+	full_setup();
 }
 
 void texture::set_current() const
 {
 	assert(!_empty);
-
-
 	glBindTexture(GL_TEXTURE_2D, _buffers.container.texture_buffer_object_id);
 }
 
@@ -409,10 +403,50 @@ int texture::height() const
 	return _image.height;
 }
 
+bool texture::transparent() const
+{
+	return _has_transparency;
+}
+
+void texture::full_setup() noexcept
+{
+	_has_transparency = _image.contains_transparent();
+
+	if(_has_transparency)
+		premultiply();
+
+	update_buffers();
+}
+
+void texture::premultiply() noexcept
+{
+	//check if there is an alpha channel
+	if(_image.bpp!=4)
+		return;
+
+	unsigned index = 0;
+	for(int y = 0; y < _image.height; ++y)
+	{
+		for(int x = 0; x < _image.width; ++x, index += _image.bpp)
+		{
+			const uint8_t alpha = _image.pixel_color(x, y, 3);
+			const float mult = alpha/255.0f;
+
+			const uint8_t new_r = _image.pixel_color(x, y, 0) * mult;
+			const uint8_t new_g = _image.pixel_color(x, y, 1) * mult;
+			const uint8_t new_b = _image.pixel_color(x, y, 2) * mult;
+
+			_image.data[index] = new_r;
+			_image.data[index+1] = new_g;
+			_image.data[index+2] = new_b;
+			_image.data[index+3] = alpha;
+		}
+	}
+}
+
 void texture::update_buffers() const
 {
 	assert(!_empty);
-
 
 	glBindTexture(GL_TEXTURE_2D, _buffers.container.texture_buffer_object_id);
 
@@ -447,6 +481,16 @@ bool texture::parse_default(const default_texture id)
 	{
 		case default_texture::solid:
 			_image = yconv::image(1, 1, 4, {255, 255, 255, 255});
+			_type = GL_RGBA;
+		break;
+
+		case default_texture::half_transparent:
+			_image = yconv::image(1, 1, 4, {255, 255, 255, 127});
+			_type = GL_RGBA;
+		break;
+
+		case default_texture::quarter_transparent:
+			_image = yconv::image(1, 1, 4, {255, 255, 255, 63});
 			_type = GL_RGBA;
 		break;
 
@@ -694,7 +738,8 @@ unsigned shader_program::add_any(T& type, const V vec_type, const int index, con
 	generate_shaders();
 
 	const unsigned prop_location = glGetUniformLocation(_buffers.container.program_id, name.c_str());
-	assert(prop_location!=-1);
+	if(prop_location==-1)
+		throw std::runtime_error(std::string("cant find uniform: ") + name);
 	
 	_props_vec.push_back(prop{index, prop_location});
 	
@@ -730,10 +775,10 @@ void shader_program::generate_shaders() const
 	const char* fragment_shader_src = _fragment.text().c_str();
 	const char* vertex_shader_src = _vertex.text().c_str();
 
-	if(fragment_shader_src=="")
+	if(_fragment.text() == "")
 		throw std::runtime_error("fragment shader is empty");
 
-	if(vertex_shader_src=="")
+	if(_vertex.text() == "")
 		throw std::runtime_error("vertex shader is empty");
 
 

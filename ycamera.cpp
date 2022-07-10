@@ -4,8 +4,8 @@ using namespace yangl;
 
 camera::camera(const yvec3 position, const yvec3 look_position) : _projection_matrix(glm::mat4(1.0f))
 {
-	_camera_position = glm::vec3(position.x, position.y, position.z);
-	_camera_direction = glm::normalize(glm::vec3(look_position.x, look_position.y, look_position.z)-_camera_position);
+	_position = glm::vec3(position.x, position.y, position.z);
+	_direction = glm::normalize(glm::vec3(look_position.x, look_position.y, look_position.z)-_position);
 
 	calculate_view();
 }
@@ -34,67 +34,72 @@ void camera::create_projection(const float fov, const float aspect, const yvec2 
 
 void camera::set_position(const yvec3 position)
 {
-	_camera_position = glm::vec3(position.x, position.y, position.z);
+	_position = glm::vec3(position.x, position.y, position.z);
 
 	calculate_view();
 }
 
 void camera::set_position_x(const float x)
 {
-	_camera_position.x = x;
+	_position.x = x;
 
 	calculate_view();
 }
 
 void camera::set_position_y(const float y)
 {
-	_camera_position.y = y;
+	_position.y = y;
 
 	calculate_view();
 }
 
 void camera::set_position_z(const float z)
 {
-	_camera_position.z = z;
+	_position.z = z;
 
 	calculate_view();
 }
 
 void camera::set_rotation(const float yaw, const float pitch)
 {
-	_camera_direction.x = std::cos(yaw) * std::cos(pitch);
-	_camera_direction.y = std::sin(pitch);
-	_camera_direction.z = std::sin(yaw) * std::cos(pitch);
+	_direction.x = std::cos(yaw) * std::cos(pitch);
+	_direction.y = std::sin(pitch);
+	_direction.z = std::sin(yaw) * std::cos(pitch);
 
 	calculate_view();
 }
 
 void camera::set_direction(const yvec3 direction)
 {
-	_camera_direction = glm::vec3(direction.x, direction.y, direction.z);
+	_direction = glm::vec3(direction.x, direction.y, direction.z);
 
 	calculate_view();
 }
 
 void camera::look_at(const yvec3 look_position)
 {
-	_camera_direction = glm::normalize(glm::vec3(look_position.x, look_position.y, look_position.z)-_camera_position);
+	_direction = glm::normalize(glm::vec3(look_position.x, look_position.y, look_position.z)-_position);
 
 	calculate_view();
 }
 
 void camera::translate_position(const yvec3 delta)
 {
-	_camera_position += delta.x*_camera_right;
-	_camera_position += delta.y*_camera_up;
-	_camera_position += delta.z*_camera_forward;
+	_position += delta.x*_right;
+	_position += delta.y*_up;
+	_position += delta.z*_forward;
 
 	calculate_view();
 }
 
 yvec3 camera::position() const noexcept
 {
-	return {_camera_position.x, _camera_position.y, _camera_position.z};
+	return {_position.x, _position.y, _position.z};
+}
+
+float camera::distance(const yvec3 point) const noexcept
+{
+	return std::abs(point.x * _direction.x + point.y * _direction.y + point.z * _direction.z);
 }
 
 int camera::x_point_side(const yvec3 point) const noexcept
@@ -203,11 +208,11 @@ void camera::calculate_view()
 {
 	_view_exists = true;
 
-	_camera_forward = glm::normalize(_camera_direction);
-	_camera_right = glm::normalize(glm::cross(glm::vec3(0, 1, 0), _camera_direction));
-	_camera_up = glm::cross(_camera_direction, _camera_right);
+	_forward = glm::normalize(_direction);
+	_right = glm::normalize(glm::cross(glm::vec3(0, 1, 0), _direction));
+	_up = glm::cross(_direction, _right);
 
-	_view_matrix = glm::lookAt(_camera_position, _camera_position + _camera_forward, _camera_up);
+	_view_matrix = glm::lookAt(_position, _position + _forward, _up);
 
 	calculate_planes();
 }
